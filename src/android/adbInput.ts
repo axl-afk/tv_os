@@ -7,7 +7,7 @@ export const AndroidKeyCode: Record<number, number> = {
   20: 20,  // DPAD_DOWN
   21: 21,  // DPAD_LEFT
   22: 22,  // DPAD_RIGHT
-  23: 23,  // DPAD_CENTER
+  23: 66,  // DPAD_CENTER -> ENTER: emulator-safe select workaround
   24: 24,  // VOLUME_UP
   25: 25,  // VOLUME_DOWN
   26: 26,  // POWER
