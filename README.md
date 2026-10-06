@@ -54,10 +54,11 @@ npm run tv -- doctor
 # Show installed AVDs
 npm run tv -- avds
 
-# Launch a TV AVD
-npm run tv -- start --avd YOUR_TV_AVD
+# Recommended: launch the TV, wait for boot, and start the phone-remote bridge
+npm run tv -- session --avd YOUR_TV_AVD
 
-# In another terminal, expose the PC as an Android TV remote target
+# Or run the two parts separately
+npm run tv -- start --avd YOUR_TV_AVD
 npm run tv -- remote
 ```
 
