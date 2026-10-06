@@ -419,8 +419,8 @@ export class RuntimeInstaller extends EventEmitter {
 
         if (
           percent === undefined ||
-          percent >= lastPercent + 2 ||
-          percent === 100
+          (percent > lastPercent &&
+            (percent >= lastPercent + 2 || percent === 100))
         ) {
           if (percent !== undefined) lastPercent = percent;
           this.update(
