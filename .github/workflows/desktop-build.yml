@@ -51,8 +51,30 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: ${{ matrix.command }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload macOS installers
+        if: matrix.name == 'macOS'
+        uses: actions/upload-artifact@v4
         with:
-          name: Ultimate-TV-OS-${{ matrix.name }}
-          path: release/*
+          name: Ultimate-TV-OS-macOS
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: error
+
+      - name: Upload Windows installer
+        if: matrix.name == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ultimate-TV-OS-Windows
+          path: release/*.exe
+          if-no-files-found: error
+
+      - name: Upload Linux packages
+        if: matrix.name == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ultimate-TV-OS-Linux
+          path: |
+            release/*.AppImage
+            release/*.deb
           if-no-files-found: error
