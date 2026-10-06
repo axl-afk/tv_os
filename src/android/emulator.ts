@@ -5,6 +5,7 @@ export type LaunchOptions = {
   avd: string;
   coldBoot?: boolean;
   writableSystem?: boolean;
+  headless?: boolean;
   environment?: NodeJS.ProcessEnv;
 };
 
@@ -19,6 +20,7 @@ export function launchTvEmulator(options: LaunchOptions): number | undefined {
 
   if (options.coldBoot) args.push("-no-snapshot-load");
   if (options.writableSystem) args.push("-writable-system");
+  if (options.headless) args.push("-no-window", "-no-audio");
 
   return spawnDetached(options.emulatorPath, args, {
     env: options.environment,
