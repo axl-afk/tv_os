@@ -50,3 +50,36 @@ html, body {
 #boot p { margin: 0; color: #91a0bd; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+
+.pairing {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 20;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 48px));
+  padding: 28px 32px;
+  border-radius: 24px;
+  background: rgba(10, 12, 18, .94);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0,0,0,.55);
+  backdrop-filter: blur(24px);
+}
+.pairing.hidden { display: none; }
+.pairing-label {
+  font-size: 14px;
+  font-weight: 700;
+  opacity: .78;
+}
+.pairing-code {
+  margin: 12px 0 10px;
+  font-size: clamp(42px, 8vw, 72px);
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+.pairing-help {
+  font-size: 14px;
+  opacity: .72;
+}
