@@ -26,6 +26,7 @@ export type SessionSnapshot = {
   serial?: string;
   pid?: number;
   remoteMode?: "native" | "compatibility";
+  pairingCode?: string;
   message?: string;
 };
 
@@ -144,6 +145,22 @@ export class UltimateTvSession extends EventEmitter {
         : new AndroidTvRemoteBridge(
             new AdbInput(tools.adb, serial),
             options.deviceName ?? "Ultimate TV OS",
+            {
+              onPairingCode: (pairingCode) => {
+                this.setState({
+                  ...this.snapshot,
+                  pairingCode,
+                  message: `Enter pairing code ${pairingCode} in the Google TV phone remote.`,
+                });
+              },
+              onPaired: () => {
+                this.setState({
+                  ...this.snapshot,
+                  pairingCode: undefined,
+                  message: "Phone paired. Select-fix mode is ready.",
+                });
+              },
+            },
           );
 
       await this.bridge.start();
