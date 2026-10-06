@@ -51,6 +51,7 @@ export type StartSessionOptions = {
   fullscreen?: boolean;
   embedded?: boolean;
   remoteMode?: "off" | "auto" | "native" | "compatibility";
+  gpuMode?: string;
 };
 
 type StoppableBridge = {
@@ -145,6 +146,7 @@ export class UltimateTvSession extends EventEmitter {
         coldBoot: options.coldBoot,
         headless: embedded,
         grpcPort,
+        gpuMode: options.gpuMode,
         environment: tools.environment,
         logFile: emulatorLogFile,
       });
