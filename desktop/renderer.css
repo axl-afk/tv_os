@@ -32,7 +32,7 @@ h3 { margin: 12px 0 8px; }
 .primary-card { padding: 28px; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
 .section-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-.form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
+.form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
 label > span { display: block; font-size: 13px; color: #a9b5ca; margin-bottom: 8px; }
 select, input[type="text"], input:not([type]) {
   width: 100%;
@@ -152,4 +152,15 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   color: #9db0ff;
   font-weight: 700;
   text-decoration: underline;
+}
+
+.embedded-note {
+  margin: 17px 0;
+  color: #93a3bd;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 13px;
+  background: rgba(92,122,255,.06);
+  border: 1px solid rgba(92,122,255,.10);
 }
