@@ -65,6 +65,19 @@ function guestAdvertisementInfo(
   };
 }
 
+function prepareNativeRemotePackage(adbPath: string, serial: string) {
+  run(
+    adbPath,
+    adbArgs(
+      serial,
+      "shell",
+      "pm",
+      "enable",
+      REMOTE_SERVICE_PACKAGE,
+    ),
+  );
+}
+
 function createAdbForward(adbPath: string, serial: string, guestPort: number): number {
   const result = run(adbPath, adbArgs(serial, "forward", "tcp:0", `tcp:${guestPort}`));
   if (!result.ok) {
@@ -84,6 +97,39 @@ function createAdbForward(adbPath: string, serial: string, guestPort: number): n
 
 function removeAdbForward(adbPath: string, serial: string, hostPort: number) {
   run(adbPath, adbArgs(serial, "forward", "--remove", `tcp:${hostPort}`));
+}
+
+async function waitForTcpEndpoint(
+  port: number,
+  timeoutMs = 8_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const reachable = await new Promise<boolean>((resolve) => {
+      const socket = net.connect({
+        host: "127.0.0.1",
+        port,
+      });
+
+      const done = (value: boolean) => {
+        socket.destroy();
+        resolve(value);
+      };
+
+      socket.setTimeout(500);
+      socket.once("connect", () => done(true));
+      socket.once("timeout", () => done(false));
+      socket.once("error", () => done(false));
+    });
+
+    if (reachable) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw new Error(
+    `Android TV Remote Service did not open forwarded port ${port}.`,
+  );
 }
 
 function tcpTunnel(
@@ -147,6 +193,8 @@ export class NativeAndroidTvRemoteProxy {
   ) {}
 
   async start() {
+    prepareNativeRemotePackage(this.adbPath, this.serial);
+
     this.pairingForward = createAdbForward(
       this.adbPath,
       this.serial,
@@ -159,6 +207,11 @@ export class NativeAndroidTvRemoteProxy {
     );
 
     try {
+      await Promise.all([
+        waitForTcpEndpoint(this.pairingForward),
+        waitForTcpEndpoint(this.remoteForward),
+      ]);
+
       [this.pairingServer, this.remoteServer] = await Promise.all([
         tcpTunnel(PUBLIC_PAIRING_PORT, this.pairingForward, "pairing"),
         tcpTunnel(PUBLIC_REMOTE_PORT, this.remoteForward, "remote"),
