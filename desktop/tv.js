@@ -3,6 +3,8 @@ const api = window.ultimateTvSurface;
 const frameEl = document.getElementById("frame");
 const boot = document.getElementById("boot");
 const bootText = document.getElementById("bootText");
+const pairing = document.getElementById("pairing");
+const pairingCode = document.getElementById("pairingCode");
 
 let sourceWidth = 1280;
 let sourceHeight = 720;
@@ -227,6 +229,14 @@ api.onFrame((frame) => {
 });
 
 api.onStatus((status) => {
+  if (status?.pairingCode) {
+    pairingCode.textContent = status.pairingCode;
+    pairing.classList.remove("hidden");
+  } else {
+    pairing.classList.add("hidden");
+    pairingCode.textContent = "";
+  }
+
   if (status?.error) {
     boot.classList.remove("hidden");
     bootText.textContent = status.error;
