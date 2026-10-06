@@ -66,7 +66,10 @@ The desktop launcher provides:
 - TV AVD discovery;
 - one-click **Start TV**;
 - Android boot/readiness detection;
-- fullscreen request;
+- hidden/headless Google TV guest;
+- embedded Ultimate TV fullscreen surface;
+- monitor/display selection;
+- keyboard and pointer input on the TV surface;
 - cold boot option;
 - native Google Remote Service mode;
 - experimental compatibility remote mode;
@@ -93,7 +96,7 @@ Supported development targets:
 
 The runtime installer selects the matching Google emulator engine and Google TV ABI automatically.
 
-macOS may request Accessibility permission when Ultimate TV attempts to move the external TV runtime window into macOS fullscreen.
+The normal desktop path no longer needs to automate an external emulator window: the Google TV guest starts headlessly and Ultimate TV owns the fullscreen surface.
 
 ### Windows
 
@@ -174,9 +177,17 @@ See:
 - [Cross-platform notes](docs/CROSS_PLATFORM.md)
 - [macOS hardware test](docs/MACOS_TEST.md)
 
+## Embedded TV display
+
+The normal desktop session now launches the managed Google TV guest with no emulator window and exposes the display only on a loopback gRPC endpoint. Ultimate TV streams the guest display into its own fullscreen window on the monitor selected by the user.
+
+The first embedded renderer uses the emulator's PNG screenshot stream at up to 1080p/30fps. This is the correctness-first implementation. A later renderer can move to the emulator's shared-memory/WebRTC-style fast paths for 4K/high-refresh performance without changing the standalone runtime/user flow.
+
+The TV window also forwards keyboard arrows, Enter/Back/Home, and pointer clicks into the guest so the app remains usable while phone-remote tap handling is being fixed separately.
+
 ## Runtime backend vs final virtualization layer
 
-The current standalone app still uses Google's Android Emulator **engine internally**. The important change is that the user no longer installs or manages Android Studio: Ultimate TV owns the runtime, system image, AVD, launch lifecycle, and updates.
+The standalone app still uses Google's Android Emulator **engine internally**, but not the Android Studio application or visible Emulator UI. Ultimate TV owns the runtime, system image, AVD, headless launch lifecycle, display surface, and updates.
 
 ADB alone cannot replace a virtualization engine; it only communicates with a running Android guest.
 
