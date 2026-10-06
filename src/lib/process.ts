@@ -46,3 +46,23 @@ export function spawnDetached(
   child.unref();
   return child.pid;
 }
+
+export function terminateProcessTree(pid: number | undefined) {
+  if (!pid || !Number.isInteger(pid) || pid <= 0) return;
+
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+    });
+    return;
+  }
+
+  try {
+    // spawnDetached creates a new process group on POSIX.
+    process.kill(-pid, "SIGTERM");
+  } catch {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {}
+  }
+}
