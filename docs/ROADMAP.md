@@ -2,7 +2,7 @@
 
 ## M0 — protocol proof
 
-Status: **implemented in repository**
+Status: **COMPLETE — hardware verified on Apple Silicon macOS with the Google TV phone remote**
 
 - Android SDK detection.
 - TV AVD enumeration.
@@ -16,7 +16,7 @@ Status: **implemented in repository**
 - Unit tests for protobuf framing.
 - CI.
 
-Exit criterion: a supported phone can discover the host, pair, and navigate a running TV guest.
+Exit criterion: a supported phone can discover the host, pair, and navigate a running TV guest. **Verified successfully with the Google TV app controlling the virtual TV through the native Android TV Remote Service proxy.**
 
 ## M1 — macOS reference product
 
