@@ -1,4 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
+import {
+  runtimeRepositoryHostArch,
+  runtimeTvAbi,
+} from "./host.js";
 
 const GOOGLE_REPOSITORY = "https://dl.google.com/android/repository/";
 
@@ -55,8 +59,8 @@ function hostOs(): string {
   return "linux";
 }
 
-function hostArch(): string { return process.arch === "arm64" ? "aarch64" : "x86_64"; }
-function tvAbi(): string { return process.arch === "arm64" ? "arm64-v8a" : "x86_64"; }
+function hostArch(): string { return runtimeRepositoryHostArch(); }
+function tvAbi(): string { return runtimeTvAbi(); }
 
 function text(value: any): string | undefined {
   if (value === undefined || value === null) return undefined;
