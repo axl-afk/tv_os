@@ -13,6 +13,27 @@ import {
 const PAIRING_PORT = 6467;
 const REMOTE_PORT = 6466;
 
+export function compatibilityPairingOptionPayload() {
+  return {
+    preferredRole: 1,
+    outputEncodings: [{ type: 3, symbolLength: 6 }],
+  };
+}
+
+export function compatibilityTvConfigurePayload() {
+  return {
+    code1: 639,
+    deviceInfo: {
+      vendor: "Ultimate TV",
+      model: "Ultimate TV OS",
+      unknown1: 1,
+      unknown2: "10",
+      packageName: "com.google.android.tv.remote.service",
+      appVersion: "6.1",
+    },
+  };
+}
+
 type PairingState = {
   expectedSecret?: Buffer;
 };
@@ -147,12 +168,7 @@ export class AndroidTvRemoteBridge {
             encodeDelimited(PairingMessage, {
               protocolVersion: 2,
               status: 200,
-              pairingOption: {
-                // Real Android TV services ask the phone to take the INPUT role
-                // and advertise a 6-character hexadecimal code on the TV.
-                preferredRole: 1,
-                outputEncodings: [{ type: 3, symbolLength: 6 }],
-              },
+              pairingOption: compatibilityPairingOptionPayload(),
             }),
           );
           continue;
@@ -242,17 +258,7 @@ export class AndroidTvRemoteBridge {
     // app-link capabilities expected by the Google TV mobile app.
     socket.write(
       encodeDelimited(RemoteMessage, {
-        remoteConfigure: {
-          code1: 639,
-          deviceInfo: {
-            vendor: "Ultimate TV",
-            model: "Ultimate TV OS",
-            unknown1: 1,
-            unknown2: "10",
-            packageName: "com.google.android.tv.remote.service",
-            appVersion: "6.1",
-          },
-        },
+        remoteConfigure: compatibilityTvConfigurePayload(),
       }),
     );
 
