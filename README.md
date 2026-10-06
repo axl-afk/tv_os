@@ -21,8 +21,10 @@ The desktop launcher provides:
 - TV-name configuration.
 - cold-boot option.
 - one-click **Start TV**.
+- automatic fullscreen TV mode.
 - Android boot/readiness detection.
-- automatic selection of Google's native TV remote service when present.
+- selectable **Select-fix compatibility mode** for Android Emulator tap/OK issues.
+- native Google Remote Service mode remains available.
 - live session state.
 - one-click **Stop TV**.
 
@@ -125,7 +127,7 @@ npm run build
 
 npm run tv -- doctor
 npm run tv -- avds
-npm run tv -- session --avd YOUR_TV_AVD
+npm run tv -- session --avd YOUR_TV_AVD --remote-mode compatibility
 npm run tv -- remote
 npm run tv -- stop --serial emulator-5554
 ```
@@ -162,3 +164,18 @@ See:
 - [Certification boundary](docs/CERTIFICATION.md)
 - [Cross-platform notes](docs/CROSS_PLATFORM.md)
 - [macOS hardware test](docs/MACOS_TEST.md)
+
+
+## Emulator backend vs final product
+
+The current development runtime intentionally launches an Android TV / Google TV AVD through Google's Android Emulator. That gives the project a hardware-accelerated, reproducible TV guest and access to Google's official development TV images while the product architecture is still being proven.
+
+The consumer product should not expose emulator tooling. Ultimate TV now requests fullscreen automatically, and a later milestone replaces the development emulator backend with the platform-specific virtual-hardware layer described in the architecture roadmap.
+
+## Phone tap / OK on Android Emulator
+
+Some Android TV emulator configurations do not reliably dispatch `KEYCODE_DPAD_CENTER` from remote input. Ultimate TV therefore provides **Select-fix mode**. In this mode, the host receives the Android TV Remote v2 event and maps center/select to Android `KEYCODE_ENTER`, while directional swipes remain normal D-pad events.
+
+The desktop app selects **Select-fix mode** by default for development/emulator use. Native Google Remote Service mode is still available when you want the unmodified Google path.
+
+If using Google's native swipe remote directly, switching the Google TV phone remote to its D-pad layout can also avoid swipe-control bugs in some current Google TV app versions.
