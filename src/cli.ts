@@ -10,6 +10,7 @@ import {
 } from "./remote/nativeProxy.js";
 import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator } from "./android/readiness.js";
 import { runDoctor } from "./doctor.js";
+import { UltimateTvSession } from "./core/session.js";
 
 const program = new Command();
 
@@ -63,59 +64,37 @@ program
 
 program
   .command("session")
-  .description("Launch a TV AVD, wait for boot, then expose it to the Google TV phone remote")
+  .description("Launch a TV AVD, enter TV mode, and expose it to the Google TV phone remote")
   .requiredOption("--avd <name>", "AVD name")
   .option("--name <name>", "TV name shown to phones", "Ultimate TV OS")
   .option("--cold", "Cold boot instead of loading a snapshot", false)
+  .option("--no-fullscreen", "Do not request fullscreen TV mode")
+  .option(
+    "--remote-mode <mode>",
+    "Remote mode: auto, native, or compatibility",
+    "compatibility",
+  )
   .action(async (options) => {
-    const tools = detectAndroidTools();
-    if (!tools.emulator || !tools.adb) {
-      throw new Error("Android emulator and adb are required.");
+    if (!["auto", "native", "compatibility"].includes(options.remoteMode)) {
+      throw new Error("--remote-mode must be auto, native, or compatibility");
     }
 
-    const installed = listAvds(tools.emulator);
-    if (!installed.includes(options.avd)) {
-      throw new Error(
-        `AVD "${options.avd}" is not installed. Available: ${installed.join(", ") || "none"}`,
-      );
-    }
-
-    const before = new Set(listAdbDevices(tools.adb));
-    const pid = launchTvEmulator({
-      emulatorPath: tools.emulator,
-      avd: options.avd,
-      coldBoot: options.cold,
+    const session = new UltimateTvSession();
+    session.on("status", (status) => {
+      if (status.message) console.log(`[session] ${status.message}`);
     });
 
-    console.log(`TV guest launched (pid ${pid ?? "unknown"}). Waiting for ADB...`);
-    const serial = await waitForNewAdbDevice(tools.adb, before);
-    console.log(`Android guest detected as ${serial}. Waiting for boot...`);
-    await waitForAndroidBoot(tools.adb, serial);
-    console.log("Android TV is ready.");
-
-    const nativeRemoteAvailable = hasNativeAndroidTvRemoteService(
-      tools.adb,
-      serial,
-    );
-
-    const bridge = nativeRemoteAvailable
-      ? new NativeAndroidTvRemoteProxy(tools.adb, serial, options.name)
-      : new AndroidTvRemoteBridge(
-          new AdbInput(tools.adb, serial),
-          options.name,
-        );
-
-    console.log(
-      nativeRemoteAvailable
-        ? "Native Google Android TV Remote Service detected; using transparent proxy mode."
-        : "Native Android TV Remote Service not found; using host compatibility server.",
-    );
-
-    await bridge.start();
+    await session.start({
+      avd: options.avd,
+      deviceName: options.name,
+      coldBoot: options.cold,
+      fullscreen: options.fullscreen,
+      remoteMode: options.remoteMode,
+    });
 
     const shutdown = async () => {
       console.log("\nStopping Ultimate TV session...");
-      await bridge.stop();
+      await session.stop();
       process.exit(0);
     };
 
