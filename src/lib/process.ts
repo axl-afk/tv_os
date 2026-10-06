@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import path from "node:path";
 
 export type CommandResult = {
   ok: boolean;
@@ -40,7 +41,7 @@ export function spawnDetached(
 ) {
   let logFd: number | undefined;
   if (options.logFile) {
-    fs.mkdirSync(require("node:path").dirname(options.logFile), { recursive: true });
+    fs.mkdirSync(path.dirname(options.logFile), { recursive: true });
     logFd = fs.openSync(options.logFile, "w");
   }
 
