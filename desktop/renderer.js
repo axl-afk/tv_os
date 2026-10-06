@@ -93,6 +93,7 @@ function setRuntimeStatus(status) {
   runtimeReady = Boolean(status.ready);
 
   const installing = ["checking", "downloading", "extracting", "configuring"].includes(status.state);
+  const present = Boolean(status.present);
   const percent = typeof status.progress === "number" ? status.progress : 0;
 
   els.runtimeMessage.textContent = status.message || "Checking runtime…";
@@ -111,21 +112,21 @@ function setRuntimeStatus(status) {
     els.licenseRow.hidden = false;
     els.installRuntime.hidden = false;
     els.installRuntime.disabled = false;
-    els.removeRuntime.hidden = true;
+    els.removeRuntime.hidden = !present;
   } else if (installing) {
     els.runtimeBadge.textContent = "Installing";
     els.runtimeBadge.className = "runtime-badge installing";
     els.licenseRow.hidden = true;
     els.installRuntime.hidden = false;
     els.installRuntime.disabled = true;
-    els.removeRuntime.hidden = true;
+    els.removeRuntime.hidden = !present;
   } else {
     els.runtimeBadge.textContent = "Not installed";
     els.runtimeBadge.className = "runtime-badge";
     els.licenseRow.hidden = false;
     els.installRuntime.hidden = false;
     els.installRuntime.disabled = !els.licenseAccept.checked;
-    els.removeRuntime.hidden = true;
+    els.removeRuntime.hidden = !present;
   }
 
   updateControls();
@@ -230,6 +231,7 @@ els.installRuntime.addEventListener("click", async () => {
 
 els.removeRuntime.addEventListener("click", async () => {
   if (sessionStatus.state === "running" || sessionBusy(sessionStatus.state)) return;
+  if (!window.confirm("Remove the entire Ultimate TV runtime and downloaded Google TV image?")) return;
   els.removeRuntime.disabled = true;
   try {
     setRuntimeStatus(await api.removeRuntime());
