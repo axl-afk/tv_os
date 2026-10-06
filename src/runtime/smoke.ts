@@ -14,6 +14,8 @@ import {
 import { EmulatorDisplayStream } from "../emulator/grpcDisplay.js";
 import { waitForEmulatorGrpcEndpoint } from "../emulator/discovery.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
+import { run } from "../lib/process.js";
+import { provisionAndroidTvGuest } from "../android/provision.js";
 import { RuntimeInstaller } from "./installer.js";
 
 
@@ -114,6 +116,36 @@ try {
   await waitForAndroidBoot(tools.adb, serial, 300_000);
   console.log(
     "[runtime-smoke] Google TV reached sys.boot_completed=1.",
+  );
+
+  provisionAndroidTvGuest(tools.adb, serial);
+
+  const requiredSettings = [
+    ["global", "device_provisioned"],
+    ["secure", "user_setup_complete"],
+    ["secure", "tv_user_setup_complete"],
+  ];
+
+  for (const [namespace, name] of requiredSettings) {
+    const result = run(tools.adb, [
+      "-s",
+      serial,
+      "shell",
+      "settings",
+      "get",
+      namespace,
+      name,
+    ]);
+
+    if (!result.ok || result.stdout.trim() !== "1") {
+      throw new Error(
+        `Guest provisioning failed for ${namespace} ${name}: ${result.stderr || result.stdout}`,
+      );
+    }
+  }
+
+  console.log(
+    "[runtime-smoke] Guest mode provisioning verified; Google account setup is not required for launcher access.",
   );
 
   const endpoint = await waitForEmulatorGrpcEndpoint(serial, 20_000);
