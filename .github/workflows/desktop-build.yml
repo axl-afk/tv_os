@@ -11,6 +11,10 @@ on:
       - "tsconfig.json"
       - ".github/workflows/desktop-build.yml"
 
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   package:
     strategy:
