@@ -91,11 +91,14 @@ async function closeTvSurface() {
 
   if (tvWindow && !tvWindow.isDestroyed()) {
     closingTvSurface = true;
-    tvWindow.destroy();
+    const windowToClose = tvWindow;
+    tvWindow = null;
+    windowToClose.removeAllListeners("closed");
+    windowToClose.destroy();
     closingTvSurface = false;
+  } else {
+    tvWindow = null;
   }
-
-  tvWindow = null;
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.show();
