@@ -18,12 +18,15 @@ export async function loadOrCreateCertificate(): Promise<CertificatePair> {
   }
 
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const notAfterDate = new Date();
+  notAfterDate.setFullYear(notAfterDate.getFullYear() + 10);
+
   const generated = await selfsigned.generate(
     [{ name: "commonName", value: "Ultimate TV OS" }],
     {
-      days: 3650,
       keySize: 2048,
       algorithm: "sha256",
+      notAfterDate,
     },
   );
 
