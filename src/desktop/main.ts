@@ -184,6 +184,9 @@ async function createTvSurface(
   });
 
   tvWindow.setMenuBarVisibility(false);
+  if (process.platform === "darwin") {
+    tvWindow.setWindowButtonVisibility(true);
+  }
 
   const sendWindowState = () => {
     if (!tvWindow || tvWindow.isDestroyed()) return;
