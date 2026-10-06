@@ -7,7 +7,7 @@ export type FullscreenResult = {
 
 function macFullscreen(avd: string): FullscreenResult {
   const escapedAvd = avd.replace(/"/g, '\\"');
-  const script = \`
+  const script = `
 tell application "System Events"
   set candidates to every application process whose visible is true
   repeat with p in candidates
@@ -17,7 +17,7 @@ tell application "System Events"
     on error
       set wt to ""
     end try
-    if n contains "qemu-system" or n contains "emulator" or wt contains "\${escapedAvd}" then
+    if n contains "qemu-system" or n contains "emulator" or wt contains "${escapedAvd}" then
       try
         set frontmost of p to true
         delay 0.25
@@ -28,7 +28,7 @@ tell application "System Events"
   end repeat
 end tell
 return "not-found"
-\`;
+`;
 
   const result = run("/usr/bin/osascript", ["-e", script]);
   if (result.ok && result.stdout.trim() === "ok") {
@@ -44,11 +44,11 @@ return "not-found"
 
 function windowsFullscreen(avd: string): FullscreenResult {
   const safeAvd = avd.replace(/'/g, "''");
-  const script = \`
+  const script = `
 $wshell = New-Object -ComObject WScript.Shell
 $target = Get-Process | Where-Object {
   $_.MainWindowHandle -ne 0 -and (
-    $_.MainWindowTitle -like '*\${safeAvd}*' -or
+    $_.MainWindowTitle -like '*${safeAvd}*' -or
     $_.MainWindowTitle -like '*Android Emulator*'
   )
 } | Select-Object -First 1
@@ -60,7 +60,7 @@ if ($target -and $wshell.AppActivate($target.Id)) {
 }
 Write-Output 'not-found'
 exit 0
-\`;
+`;
 
   const result = run("powershell.exe", [
     "-NoProfile",
@@ -80,16 +80,16 @@ exit 0
 
 function linuxFullscreen(avd: string): FullscreenResult {
   const safeAvd = avd.replace(/'/g, "'\\''");
-  const command = \`
+  const command = `
 if command -v wmctrl >/dev/null 2>&1; then
-  wmctrl -r '\${safeAvd}' -b add,fullscreen 2>/dev/null || wmctrl -r 'Android Emulator' -b add,fullscreen 2>/dev/null
+  wmctrl -r '${safeAvd}' -b add,fullscreen 2>/dev/null || wmctrl -r 'Android Emulator' -b add,fullscreen 2>/dev/null
 elif command -v xdotool >/dev/null 2>&1; then
-  id=$(xdotool search --name '\${safeAvd}' 2>/dev/null | head -n1)
+  id=$(xdotool search --name '${safeAvd}' 2>/dev/null | head -n1)
   [ -n "$id" ] && xdotool windowactivate "$id" key alt+Return
 else
   exit 2
 fi
-\`;
+`;
   const result = run("/bin/sh", ["-lc", command]);
   if (result.ok) {
     return { ok: true, message: "Android TV fullscreen requested on Linux." };
