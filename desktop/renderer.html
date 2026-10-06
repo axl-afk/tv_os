@@ -35,8 +35,20 @@
           <span>Name shown on phone</span>
           <input id="deviceName" value="Ultimate TV OS" maxlength="48" />
         </label>
+        <label>
+          <span>Phone remote mode</span>
+          <select id="remoteModeSelect">
+            <option value="compatibility" selected>Select-fix mode (recommended for emulator)</option>
+            <option value="native">Native Google Remote Service</option>
+            <option value="auto">Auto</option>
+          </select>
+        </label>
       </div>
 
+      <label class="check-row">
+        <input type="checkbox" id="fullscreen" checked />
+        <span>Enter fullscreen TV mode automatically</span>
+      </label>
       <label class="check-row">
         <input type="checkbox" id="coldBoot" />
         <span>Cold boot Android TV instead of loading a snapshot</span>
