@@ -17,20 +17,21 @@ type PairingState = {
   expectedSecret?: Buffer;
 };
 
-function certificateKeyParts(cert: ReturnType<TLSSocket["getPeerCertificate"]>) {
-  if (!cert.modulus || !cert.exponent) {
+function certificateKeyParts(cert: unknown) {
+  const parsed = cert as { modulus?: string; exponent?: string };
+  if (!parsed.modulus || !parsed.exponent) {
     throw new Error("Remote certificate does not expose RSA modulus/exponent.");
   }
 
-  const modulus = Buffer.from(cert.modulus.replace(/^0x/i, ""), "hex");
-  let exponentHex = cert.exponent.replace(/^0x/i, "");
+  const modulus = Buffer.from(parsed.modulus.replace(/^0x/i, ""), "hex");
+  let exponentHex = parsed.exponent.replace(/^0x/i, "");
   if (exponentHex.length % 2) exponentHex = `0${exponentHex}`;
 
   return { modulus, exponent: Buffer.from(exponentHex, "hex") };
 }
 
 function ownCertificateKeyParts(socket: TLSSocket) {
-  const cert = socket.getCertificate();
+  const cert = socket.getCertificate() as { modulus?: string; exponent?: string } | undefined;
   if (!cert?.modulus || !cert.exponent) {
     throw new Error("Server certificate does not expose RSA modulus/exponent.");
   }
@@ -104,7 +105,7 @@ export class AndroidTvRemoteBridge {
 
   private handlePairing(socket: TLSSocket) {
     console.log(`[pairing] phone connected from ${socket.remoteAddress}`);
-    let buffer = Buffer.alloc(0);
+    let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
     const state: PairingState = {};
 
     socket.on("data", (chunk) => {
@@ -213,7 +214,7 @@ export class AndroidTvRemoteBridge {
 
   private handleRemote(socket: TLSSocket) {
     console.log(`[remote] control connection from ${socket.remoteAddress}`);
-    let buffer = Buffer.alloc(0);
+    let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
     let ping = 1;
 
     socket.write(
