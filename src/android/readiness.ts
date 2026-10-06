@@ -81,15 +81,30 @@ export function findRunningAvdSerials(
   return matches;
 }
 
-export function stopRunningAvdInstances(
+export async function stopRunningAvdInstances(
   adbPath: string,
   avdName: string,
-): void {
-  for (const serial of findRunningAvdSerials(adbPath, avdName)) {
+  timeoutMs = 15_000,
+): Promise<void> {
+  const stale = findRunningAvdSerials(adbPath, avdName);
+  if (!stale.length) return;
+
+  for (const serial of stale) {
     try {
       stopEmulator(adbPath, serial);
     } catch {
       // Best-effort cleanup of stale private runtime instances.
     }
   }
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const remaining = new Set(listAdbDevices(adbPath));
+    if (stale.every((serial) => !remaining.has(serial))) return;
+    await sleep(250);
+  }
+
+  throw new Error(
+    `A previous ${avdName} instance is still shutting down. Try Start TV again.`,
+  );
 }
