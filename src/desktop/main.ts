@@ -322,6 +322,15 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.on("tv:text", (_event, value: string) => {
+    if (!tvInput || typeof value !== "string" || !value) return;
+    try {
+      tvInput.text(value);
+    } catch (error) {
+      sendTv("tv:status", { error: String(error) });
+    }
+  });
+
   ipcMain.on(
     "tv:tap",
     (_event, point: { x?: number; y?: number }) => {
