@@ -4,6 +4,10 @@ import { detectAndroidTools, listAdbDevices, listAvds } from "./android/sdk.js";
 import { launchTvEmulator } from "./android/emulator.js";
 import { AdbInput } from "./android/adbInput.js";
 import { AndroidTvRemoteBridge } from "./remote/server.js";
+import {
+  NativeAndroidTvRemoteProxy,
+  hasNativeAndroidTvRemoteService,
+} from "./remote/nativeProxy.js";
 import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator } from "./android/readiness.js";
 import { runDoctor } from "./doctor.js";
 
@@ -89,10 +93,24 @@ program
     await waitForAndroidBoot(tools.adb, serial);
     console.log("Android TV is ready.");
 
-    const bridge = new AndroidTvRemoteBridge(
-      new AdbInput(tools.adb, serial),
-      options.name,
+    const nativeRemoteAvailable = hasNativeAndroidTvRemoteService(
+      tools.adb,
+      serial,
     );
+
+    const bridge = nativeRemoteAvailable
+      ? new NativeAndroidTvRemoteProxy(tools.adb, serial, options.name)
+      : new AndroidTvRemoteBridge(
+          new AdbInput(tools.adb, serial),
+          options.name,
+        );
+
+    console.log(
+      nativeRemoteAvailable
+        ? "Native Google Android TV Remote Service detected; using transparent proxy mode."
+        : "Native Android TV Remote Service not found; using host compatibility server.",
+    );
+
     await bridge.start();
 
     const shutdown = async () => {
