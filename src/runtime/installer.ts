@@ -5,7 +5,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import extract from "extract-zip";
+import yauzl from "yauzl";
 import {
   RUNTIME_AVD_NAME,
   privateRuntimeReady,
@@ -71,8 +71,131 @@ function checksumAlgorithm(artifact: RuntimeArtifact): string | null {
 
 async function fileChecksum(file: string, algorithm: string): Promise<string> {
   const hash = crypto.createHash(algorithm);
-  await pipeline(fs.createReadStream(file), hash);
+  await new Promise<void>((resolve, reject) => {
+    const stream = fs.createReadStream(file);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("error", reject);
+    stream.on("end", resolve);
+  });
   return hash.digest("hex");
+}
+
+function safeArchivePath(root: string, entryName: string): string {
+  if (entryName.includes("\0")) throw new Error("Unsafe ZIP entry.");
+  const normalized = entryName.replace(/\\/g, "/");
+  if (
+    normalized.startsWith("/") ||
+    /^[A-Za-z]:/.test(normalized) ||
+    normalized.split("/").some((part) => part === "..")
+  ) {
+    throw new Error("Blocked unsafe ZIP path: " + entryName);
+  }
+
+  const rootPath = path.resolve(root);
+  const output = path.resolve(rootPath, normalized);
+  if (output !== rootPath && !output.startsWith(rootPath + path.sep)) {
+    throw new Error("Blocked ZIP path traversal: " + entryName);
+  }
+  return output;
+}
+
+function openZip(file: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    yauzl.open(file, { lazyEntries: true, decodeStrings: true }, (error, zipfile) => {
+      if (error || !zipfile) reject(error ?? new Error("Unable to open ZIP archive."));
+      else resolve(zipfile);
+    });
+  });
+}
+
+function openEntryStream(zipfile: any, entry: any): Promise<NodeJS.ReadableStream> {
+  return new Promise((resolve, reject) => {
+    zipfile.openReadStream(entry, (error: Error | null, stream: NodeJS.ReadableStream | undefined) => {
+      if (error || !stream) reject(error ?? new Error("Unable to read ZIP entry."));
+      else resolve(stream);
+    });
+  });
+}
+
+async function readSmallStream(stream: NodeJS.ReadableStream, limit = 16_384): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const raw of stream as any) {
+    const chunk = Buffer.from(raw);
+    size += chunk.length;
+    if (size > limit) throw new Error("ZIP symlink target is unexpectedly large.");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+async function extractEntry(zipfile: any, entry: any, root: string) {
+  const output = safeArchivePath(root, entry.fileName);
+  const mode = (entry.externalFileAttributes >>> 16) & 0xffff;
+  const type = mode & 0o170000;
+  const isDirectory = entry.fileName.endsWith("/") || type === 0o040000;
+  const isSymlink = type === 0o120000;
+
+  if (isDirectory) {
+    await fsp.mkdir(output, { recursive: true });
+    return;
+  }
+
+  await fsp.mkdir(path.dirname(output), { recursive: true });
+  const stream = await openEntryStream(zipfile, entry);
+
+  if (isSymlink) {
+    if (process.platform === "win32") {
+      throw new Error("Runtime archive contains a symlink unsupported by this Windows installer.");
+    }
+    const target = (await readSmallStream(stream)).toString("utf8");
+    const resolvedTarget = path.resolve(path.dirname(output), target);
+    const rootPath = path.resolve(root);
+    if (resolvedTarget !== rootPath && !resolvedTarget.startsWith(rootPath + path.sep)) {
+      throw new Error("Blocked unsafe ZIP symlink: " + entry.fileName);
+    }
+    await fsp.rm(output, { force: true });
+    await fsp.symlink(target, output);
+    return;
+  }
+
+  await pipeline(stream as any, fs.createWriteStream(output, { mode: mode ? mode & 0o777 : 0o644 }));
+
+  if (process.platform !== "win32" && mode) {
+    await fsp.chmod(output, mode & 0o777);
+  }
+}
+
+async function extractZipSecure(file: string, destination: string) {
+  await fsp.mkdir(destination, { recursive: true });
+  const zipfile = await openZip(file);
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      try { zipfile.close(); } catch {}
+      reject(error);
+    };
+
+    zipfile.on("error", fail);
+    zipfile.on("end", () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    });
+
+    zipfile.on("entry", (entry: any) => {
+      void extractEntry(zipfile, entry, destination)
+        .then(() => zipfile.readEntry())
+        .catch(fail);
+    });
+
+    zipfile.readEntry();
+  });
 }
 
 async function moveChildrenUp(from: string, to: string) {
@@ -90,6 +213,10 @@ async function normalizeSystemImage(destination: string) {
     (entry) => entry.isDirectory() && fs.existsSync(path.join(destination, entry.name, "system.img")),
   );
   if (nested) await moveChildrenUp(path.join(destination, nested.name), destination);
+
+  if (!fs.existsSync(path.join(destination, "system.img"))) {
+    throw new Error("Downloaded Google TV image did not contain system.img.");
+  }
 }
 
 function avdConfig(apiLevel: number, abi: string): string {
@@ -153,11 +280,19 @@ export class RuntimeInstaller extends EventEmitter {
 
   status(): RuntimeInstallSnapshot {
     const ready = privateRuntimeReady();
-    return { ...this.snapshot, ready, state: ready && !this.installing ? "ready" : this.snapshot.state };
+    return {
+      ...this.snapshot,
+      ready,
+      state: ready && !this.installing ? "ready" : this.snapshot.state,
+    };
   }
 
   async install(licenseAccepted: boolean): Promise<RuntimeInstallSnapshot> {
-    if (!licenseAccepted) throw new Error("You must accept the Android SDK License before downloading Google runtime components.");
+    if (!licenseAccepted) {
+      throw new Error(
+        "You must accept the Android SDK License before downloading Google runtime components.",
+      );
+    }
     if (this.installing) throw new Error("Runtime installation is already running.");
     ensureSupportedHost();
 
@@ -174,7 +309,10 @@ export class RuntimeInstaller extends EventEmitter {
       ]);
       const platformTools = platformToolsArtifact();
 
+      await fsp.rm(path.join(runtimeSdkRoot(), "platform-tools"), { recursive: true, force: true });
       await this.installZip(platformTools, "platform-tools", runtimeSdkRoot());
+
+      await fsp.rm(path.join(runtimeSdkRoot(), "emulator"), { recursive: true, force: true });
       await this.installZip(emulator, "emulator", runtimeSdkRoot());
 
       if (!image.apiLevel || !image.abi || !image.packagePath) {
@@ -206,7 +344,12 @@ export class RuntimeInstaller extends EventEmitter {
       };
       await fsp.writeFile(runtimeMetadataPath(), JSON.stringify(metadata, null, 2) + "\n");
 
-      this.update("ready", "complete", 100, "Ultimate TV runtime is ready. Android Studio is not required.");
+      this.update(
+        "ready",
+        "complete",
+        100,
+        "Ultimate TV runtime is ready. Android Studio is not required.",
+      );
       return this.status();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -218,7 +361,9 @@ export class RuntimeInstaller extends EventEmitter {
   }
 
   async remove(): Promise<RuntimeInstallSnapshot> {
-    if (this.installing) throw new Error("Cannot remove the runtime while installation is active.");
+    if (this.installing) {
+      throw new Error("Cannot remove the runtime while installation is active.");
+    }
     await fsp.rm(runtimeRoot(), { recursive: true, force: true });
     this.snapshot = {
       state: "not-installed",
@@ -230,31 +375,62 @@ export class RuntimeInstaller extends EventEmitter {
     return this.status();
   }
 
-  private async installZip(artifact: RuntimeArtifact, name: string, destination: string) {
+  private async installZip(
+    artifact: RuntimeArtifact,
+    name: string,
+    destination: string,
+  ) {
     const zipPath = path.join(runtimeDownloads(), name + ".zip");
     await this.download(artifact, zipPath, name);
 
-    this.update("extracting", name, undefined, "Installing " + this.label(name) + "…");
-    await extract(zipPath, { dir: destination });
+    this.update(
+      "extracting",
+      name,
+      undefined,
+      "Installing " + this.label(name) + "…",
+    );
+    await extractZipSecure(zipPath, destination);
     await fsp.rm(zipPath, { force: true });
   }
 
-  private async download(artifact: RuntimeArtifact, destination: string, stage: string) {
+  private async download(
+    artifact: RuntimeArtifact,
+    destination: string,
+    stage: string,
+  ) {
     const response = await fetch(artifact.url, { redirect: "follow" });
     if (!response.ok || !response.body) {
-      throw new Error("Download failed: " + response.status + " " + response.statusText);
+      throw new Error(
+        "Download failed: " + response.status + " " + response.statusText,
+      );
     }
 
-    const total = artifact.size ?? Number(response.headers.get("content-length") ?? 0);
+    const total =
+      artifact.size ?? Number(response.headers.get("content-length") ?? 0);
     let downloaded = 0;
     let lastPercent = -1;
     const counter = new Transform({
       transform: (chunk, _encoding, callback) => {
         downloaded += chunk.length;
-        const percent = total > 0 ? Math.min(100, Math.round((downloaded / total) * 100)) : undefined;
-        if (percent === undefined || percent >= lastPercent + 2 || percent === 100) {
+        const percent =
+          total > 0
+            ? Math.min(100, Math.round((downloaded / total) * 100))
+            : undefined;
+
+        if (
+          percent === undefined ||
+          percent >= lastPercent + 2 ||
+          percent === 100
+        ) {
           if (percent !== undefined) lastPercent = percent;
-          this.update("downloading", stage, percent, "Downloading " + this.label(stage) + (percent !== undefined ? " — " + percent + "%" : "…"));
+          this.update(
+            "downloading",
+            stage,
+            percent,
+            "Downloading " +
+              this.label(stage) +
+              (percent !== undefined ? " — " + percent + "%" : "…"),
+          );
         }
         callback(null, chunk);
       },
@@ -271,7 +447,9 @@ export class RuntimeInstaller extends EventEmitter {
       const actual = await fileChecksum(destination, algorithm);
       if (actual.toLowerCase() !== artifact.checksum.toLowerCase()) {
         await fsp.rm(destination, { force: true });
-        throw new Error("Checksum verification failed for " + this.label(stage) + ".");
+        throw new Error(
+          "Checksum verification failed for " + this.label(stage) + ".",
+        );
       }
     }
   }
@@ -280,7 +458,10 @@ export class RuntimeInstaller extends EventEmitter {
     const avdDir = runtimeAvdDir();
     await fsp.rm(avdDir, { recursive: true, force: true });
     await fsp.mkdir(avdDir, { recursive: true });
-    await fsp.writeFile(path.join(avdDir, "config.ini"), avdConfig(apiLevel, abi));
+    await fsp.writeFile(
+      path.join(avdDir, "config.ini"),
+      avdConfig(apiLevel, abi),
+    );
     await fsp.writeFile(
       runtimeAvdIni(),
       [
@@ -294,7 +475,10 @@ export class RuntimeInstaller extends EventEmitter {
 
   private async ensureExecutableBits() {
     if (process.platform === "win32") return;
-    const candidates = [runtimeExecutable("adb"), runtimeExecutable("emulator")];
+    const candidates = [
+      runtimeExecutable("adb"),
+      runtimeExecutable("emulator"),
+    ];
     for (const file of candidates) {
       if (fs.existsSync(file)) await fsp.chmod(file, 0o755);
     }
