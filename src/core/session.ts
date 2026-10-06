@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { detectAndroidTools, listAdbDevices, listAvds } from "../android/sdk.js";
 import { launchTvEmulator } from "../android/emulator.js";
 import { AdbInput } from "../android/adbInput.js";
-import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator, stopRunningAvdInstances } from "../android/readiness.js";
+import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator, stopRunningAvdInstances, getAndroidDisplaySize } from "../android/readiness.js";
 import { requestEmulatorFullscreen } from "../host/fullscreen.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
 import { terminateProcessTree } from "../lib/process.js";
@@ -31,6 +31,8 @@ export type SessionSnapshot = {
   pairingCode?: string;
   embedded?: boolean;
   grpcPort?: number;
+  displayWidth?: number;
+  displayHeight?: number;
   message?: string;
 };
 
@@ -117,6 +119,8 @@ export class UltimateTvSession extends EventEmitter {
         pid,
         embedded,
         grpcPort,
+        displayWidth: displaySize.width,
+        displayHeight: displaySize.height,
         message: embedded
           ? "Starting hidden TV engine…"
           : "Waiting for Android Debug Bridge…",
@@ -137,6 +141,7 @@ export class UltimateTvSession extends EventEmitter {
       });
 
       await waitForAndroidBoot(tools.adb, serial);
+      const displaySize = getAndroidDisplaySize(tools.adb, serial);
 
       const fullscreen = embedded
         ? { ok: true, message: "Ultimate TV owns the fullscreen surface." }
@@ -222,6 +227,8 @@ export class UltimateTvSession extends EventEmitter {
         pid,
         embedded,
         grpcPort,
+        displayWidth: displaySize.width,
+        displayHeight: displaySize.height,
         remoteMode: activeRemoteMode,
         message: embedded
           ? `Ultimate TV is ready. ${remoteMessage}`
