@@ -55,7 +55,7 @@ export class UltimateTvSession extends EventEmitter {
   availableAvds(): string[] {
     const tools = detectAndroidTools();
     if (!tools.emulator) return [];
-    return listAvds(tools.emulator);
+    return listAvds(tools.emulator, tools.environment);
   }
 
   async start(options: StartSessionOptions): Promise<SessionSnapshot> {
@@ -66,11 +66,11 @@ export class UltimateTvSession extends EventEmitter {
     const tools = detectAndroidTools();
     if (!tools.emulator || !tools.adb) {
       throw new Error(
-        "Android Emulator and ADB were not found. Install Android Studio and the Android SDK tools first.",
+        "Ultimate TV runtime is not installed. Install it from the Ultimate TV OS app first.",
       );
     }
 
-    const installed = listAvds(tools.emulator);
+    const installed = listAvds(tools.emulator, tools.environment);
     if (!installed.includes(options.avd)) {
       throw new Error(
         `AVD "${options.avd}" is not installed. Available: ${installed.join(", ") || "none"}`,
@@ -86,11 +86,12 @@ export class UltimateTvSession extends EventEmitter {
         message: "Launching TV guest…",
       });
 
-      const before = new Set(listAdbDevices(tools.adb));
+      const before = new Set(listAdbDevices(tools.adb, tools.environment));
       const pid = launchTvEmulator({
         emulatorPath: tools.emulator,
         avd: options.avd,
         coldBoot: options.coldBoot,
+        environment: tools.environment,
       });
 
       this.setState({
