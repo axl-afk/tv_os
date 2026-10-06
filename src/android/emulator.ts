@@ -6,6 +6,8 @@ export type LaunchOptions = {
   coldBoot?: boolean;
   writableSystem?: boolean;
   headless?: boolean;
+  noAudio?: boolean;
+  grpcPort?: number;
   gpuMode?: string;
   environment?: NodeJS.ProcessEnv;
 };
@@ -21,7 +23,11 @@ export function launchTvEmulator(options: LaunchOptions): number | undefined {
 
   if (options.coldBoot) args.push("-no-snapshot-load");
   if (options.writableSystem) args.push("-writable-system");
-  if (options.headless) args.push("-no-window", "-no-audio");
+  if (options.headless) args.push("-no-window");
+  if (options.noAudio) args.push("-no-audio");
+  if (options.grpcPort) {
+    args.push("-grpc", `localhost:${options.grpcPort}`);
+  }
 
   return spawnDetached(options.emulatorPath, args, {
     env: options.environment,
