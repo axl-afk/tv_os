@@ -86,7 +86,7 @@ export class UltimateTvSession extends EventEmitter {
 
     // A previous crash can leave our private AVD alive. Clear only instances
     // with this exact AVD name so Start TV remains deterministic.
-    stopRunningAvdInstances(tools.adb, options.avd);
+    await stopRunningAvdInstances(tools.adb, options.avd);
 
     let launchedPid: number | undefined;
 
