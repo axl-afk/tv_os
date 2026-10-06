@@ -23,13 +23,13 @@ export function guestProvisionCommands(): ProvisionCommand[] {
       args: ["shell", "settings", "put", "global", "setup_wizard_has_run", "1"],
     },
     {
-      args: ["shell", "settings", "put", "system", "peak_refresh_rate", "120.0"],
+      args: ["shell", "settings", "put", "system", "peak_refresh_rate", "60.0"],
     },
     {
-      args: ["shell", "settings", "put", "system", "min_refresh_rate", "120.0"],
+      args: ["shell", "settings", "put", "system", "min_refresh_rate", "60.0"],
     },
     {
-      args: ["shell", "settings", "put", "system", "user_refresh_rate", "120"],
+      args: ["shell", "settings", "put", "system", "user_refresh_rate", "60"],
     },
     {
       args: [
