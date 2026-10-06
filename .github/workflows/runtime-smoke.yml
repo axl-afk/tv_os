@@ -6,6 +6,8 @@ on:
     paths:
       - "src/runtime/**"
       - "src/android/**"
+      - "src/emulator/**"
+      - "proto/**"
       - "package.json"
       - ".github/workflows/runtime-smoke.yml"
 
