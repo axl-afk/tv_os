@@ -51,6 +51,10 @@ export class AndroidTvRemoteBridge {
   constructor(
     private readonly input: AdbInput,
     private readonly deviceName = "Ultimate TV OS",
+    private readonly events: {
+      onPairingCode?: (code: string) => void;
+      onPaired?: () => void;
+    } = {},
   ) {}
 
   async start() {
@@ -180,6 +184,7 @@ export class AndroidTvRemoteBridge {
             console.log(` Ultimate TV pairing code: ${pin}`);
             console.log("====================================");
             console.log("");
+            this.events.onPairingCode?.(pin);
 
             socket.write(
               encodeDelimited(PairingMessage, {
@@ -213,6 +218,7 @@ export class AndroidTvRemoteBridge {
           );
 
           console.log(valid ? "[pairing] phone paired" : "[pairing] invalid pairing secret");
+          if (valid) this.events.onPaired?.();
         }
       }
     });
