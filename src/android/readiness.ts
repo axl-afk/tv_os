@@ -108,3 +108,31 @@ export async function stopRunningAvdInstances(
     `A previous ${avdName} instance is still shutting down. Try Start TV again.`,
   );
 }
+
+export function getAndroidDisplaySize(
+  adbPath: string,
+  serial: string,
+): { width: number; height: number } {
+  const result = run(adbPath, [
+    "-s",
+    serial,
+    "shell",
+    "wm",
+    "size",
+  ]);
+
+  if (!result.ok) return { width: 1920, height: 1080 };
+
+  const matches = [...result.stdout.matchAll(/(\d+)x(\d+)/g)];
+  const last = matches.at(-1);
+  if (!last) return { width: 1920, height: 1080 };
+
+  const width = Number(last[1]);
+  const height = Number(last[2]);
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return { width: 1920, height: 1080 };
+  }
+
+  return { width, height };
+}
