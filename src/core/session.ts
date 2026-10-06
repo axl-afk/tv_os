@@ -1,11 +1,13 @@
+import path from "node:path";
 import { EventEmitter } from "node:events";
 import { detectAndroidTools, listAdbDevices, listAvds } from "../android/sdk.js";
-import { launchTvEmulator } from "../android/emulator.js";
+import { checkEmulatorAcceleration, launchTvEmulator } from "../android/emulator.js";
 import { AdbInput } from "../android/adbInput.js";
 import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator, stopRunningAvdInstances, getAndroidDisplaySize } from "../android/readiness.js";
 import { requestEmulatorFullscreen } from "../host/fullscreen.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
 import { terminateProcessTree } from "../lib/process.js";
+import { runtimeRoot } from "../runtime/paths.js";
 import { AndroidTvRemoteBridge } from "../remote/server.js";
 import {
   NativeAndroidTvRemoteProxy,
@@ -86,6 +88,17 @@ export class UltimateTvSession extends EventEmitter {
 
     this.adbPath = tools.adb;
 
+    const acceleration = checkEmulatorAcceleration(
+      tools.emulator,
+      tools.environment,
+    );
+    if (!acceleration.ok) {
+      throw new Error(
+        "Android Emulator hardware acceleration is unavailable.\n\n" +
+          acceleration.detail,
+      );
+    }
+
     // A previous crash can leave our private AVD alive. Clear only instances
     // with this exact AVD name so Start TV remains deterministic.
     await stopRunningAvdInstances(tools.adb, options.avd);
@@ -103,6 +116,12 @@ export class UltimateTvSession extends EventEmitter {
       const embedded = options.embedded === true;
       const grpcPort = embedded ? await reserveFreeLoopbackPort() : undefined;
 
+      const emulatorLogFile = path.join(
+        runtimeRoot(),
+        "logs",
+        "emulator-last.log",
+      );
+
       const pid = launchTvEmulator({
         emulatorPath: tools.emulator,
         avd: options.avd,
@@ -110,6 +129,7 @@ export class UltimateTvSession extends EventEmitter {
         headless: embedded,
         grpcPort,
         environment: tools.environment,
+        logFile: emulatorLogFile,
       });
       launchedPid = pid;
 
@@ -124,7 +144,14 @@ export class UltimateTvSession extends EventEmitter {
           : "Waiting for Android Debug Bridge…",
       });
 
-      const serial = await waitForNewAdbDevice(tools.adb, before);
+      const serial = await waitForNewAdbDevice(
+        tools.adb,
+        before,
+        120_000,
+        tools.environment,
+        pid,
+        emulatorLogFile,
+      );
 
       this.setState({
         state: "booting",
