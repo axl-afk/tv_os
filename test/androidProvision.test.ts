@@ -16,13 +16,13 @@ describe("Google TV guest provisioning", () => {
     );
   });
 
-  it("requests the 120 Hz TV refresh policy", () => {
+  it("matches the real 60 Hz TV refresh policy", () => {
     const commands = guestProvisionCommands().map((item) => item.args.join(" "));
     expect(commands).toContain(
-      "shell settings put system peak_refresh_rate 120.0",
+      "shell settings put system peak_refresh_rate 60.0",
     );
     expect(commands).toContain(
-      "shell settings put system min_refresh_rate 120.0",
+      "shell settings put system min_refresh_rate 60.0",
     );
   });
 
