@@ -23,7 +23,6 @@ html, body {
   background: #000;
   display: block;
 }
-#frame:not([src]) { visibility: hidden; }
 #boot {
   position: absolute;
   inset: 0;
