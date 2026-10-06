@@ -14,6 +14,8 @@ export type TvFrame = {
 export type GrpcDisplayOptions = {
   port: number;
   appPath: string;
+  token?: string;
+  address?: string;
   width?: number;
   height?: number;
   maxFps?: number;
@@ -54,8 +56,12 @@ export class EmulatorDisplayStream extends EventEmitter {
       throw new Error("Unable to load Android Emulator gRPC controller.");
     }
 
+    const target =
+      this.options.address?.trim() ||
+      `localhost:${this.options.port}`;
+
     const client = new Controller(
-      `localhost:${this.options.port}`,
+      target,
       grpc.credentials.createInsecure(),
     );
     this.client = client;
@@ -73,12 +79,23 @@ export class EmulatorDisplayStream extends EventEmitter {
     const maxFps = Math.max(1, this.options.maxFps ?? 30);
     const minimumGapMs = 1000 / maxFps;
 
-    const call = client.streamScreenshot({
-      format: 0,
-      width,
-      height,
-      display: 0,
-    });
+    const metadata = new grpc.Metadata();
+    if (this.options.token) {
+      metadata.set(
+        "authorization",
+        `Bearer ${this.options.token}`,
+      );
+    }
+
+    const call = client.streamScreenshot(
+      {
+        format: 0,
+        width,
+        height,
+        display: 0,
+      },
+      metadata,
+    );
     this.call = call;
 
     call.on("data", (image: any) => {
