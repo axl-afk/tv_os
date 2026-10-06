@@ -1,0 +1,38 @@
+name: Standalone runtime smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/runtime/**"
+      - "src/android/**"
+      - "package.json"
+      - ".github/workflows/runtime-smoke.yml"
+
+concurrency:
+  group: runtime-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm install
+
+      - name: Enable KVM access when available
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
+
+      - name: Install private runtime and boot Google TV
+        env:
+          ULTIMATE_TV_RUNTIME_ROOT: ${{ runner.temp }}/ultimate-tv-runtime
+        run: npm run runtime:smoke
