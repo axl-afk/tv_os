@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld("ultimateTvSurface", {
     return () => ipcRenderer.removeListener("tv:frame", listener);
   },
 
+  frameConsumed: () => ipcRenderer.send("tv:frame-consumed"),
+
   onStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on("tv:status", listener);
