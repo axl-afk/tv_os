@@ -20,6 +20,11 @@ import {
 const session = new UltimateTvSession();
 const runtime = new RuntimeInstaller();
 
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
+
 let mainWindow: BrowserWindow | null = null;
 let tvWindow: BrowserWindow | null = null;
 let displayStream: EmulatorDisplayStream | null = null;
@@ -207,6 +212,14 @@ async function createTvSurface(
   tvWindow.focus();
   tvWindow.setFullScreen(true);
 }
+
+app.on("second-instance", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
 
 app.whenReady().then(() => {
   ipcMain.handle("system:info", () => {
