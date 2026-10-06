@@ -119,8 +119,6 @@ export class UltimateTvSession extends EventEmitter {
         pid,
         embedded,
         grpcPort,
-        displayWidth: displaySize.width,
-        displayHeight: displaySize.height,
         message: embedded
           ? "Starting hidden TV engine…"
           : "Waiting for Android Debug Bridge…",
@@ -156,6 +154,8 @@ export class UltimateTvSession extends EventEmitter {
         pid,
         embedded,
         grpcPort,
+        displayWidth: displaySize.width,
+        displayHeight: displaySize.height,
         message: embedded
           ? "TV engine is ready. Preparing the Ultimate TV screen…"
           : fullscreen.ok
