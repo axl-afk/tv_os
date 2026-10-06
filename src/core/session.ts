@@ -8,6 +8,10 @@ import { requestEmulatorFullscreen } from "../host/fullscreen.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
 import { terminateProcessTree } from "../lib/process.js";
 import { runtimeRoot } from "../runtime/paths.js";
+import {
+  applyRuntimeStoragePolicy,
+  runtimeFreeSpaceBytes,
+} from "../runtime/storage.js";
 import { AndroidTvRemoteBridge } from "../remote/server.js";
 import {
   NativeAndroidTvRemoteProxy,
@@ -87,6 +91,16 @@ export class UltimateTvSession extends EventEmitter {
     }
 
     this.adbPath = tools.adb;
+
+    applyRuntimeStoragePolicy();
+
+    const freeBytes = runtimeFreeSpaceBytes();
+    if (freeBytes !== null && freeBytes < 6 * 1024 * 1024 * 1024) {
+      throw new Error(
+        "Not enough free disk space to start Ultimate TV safely. " +
+          "Free at least 6 GB, then try again.",
+      );
+    }
 
     const acceleration = checkEmulatorAcceleration(
       tools.emulator,
