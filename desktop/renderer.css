@@ -78,3 +78,15 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .hero { flex-direction: column; }
   .grid, .form-grid, .checks { grid-template-columns: 1fr; }
 }
+
+.pairing-code {
+  margin-top: 18px;
+  border: 1px solid rgba(107,140,255,.24);
+  background: rgba(70,96,190,.10);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+.pairing-code[hidden] { display: none; }
+.pairing-code span, .pairing-code small { display: block; color: #91a2bf; }
+.pairing-code span { font-size: 10px; letter-spacing: .16em; font-weight: 800; }
+.pairing-code strong { display: block; margin: 7px 0; font-size: 30px; letter-spacing: .16em; }
