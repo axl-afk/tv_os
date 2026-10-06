@@ -6,6 +6,8 @@ const els = {
   avd: document.getElementById("avdSelect"),
   deviceName: document.getElementById("deviceName"),
   coldBoot: document.getElementById("coldBoot"),
+  fullscreen: document.getElementById("fullscreen"),
+  remoteModeSelect: document.getElementById("remoteModeSelect"),
   start: document.getElementById("startBtn"),
   stop: document.getElementById("stopBtn"),
   refresh: document.getElementById("refreshBtn"),
@@ -35,6 +37,8 @@ function setStatus(status) {
   els.avd.disabled = busy || running;
   els.deviceName.disabled = busy || running;
   els.coldBoot.disabled = busy || running;
+  els.fullscreen.disabled = busy || running;
+  els.remoteModeSelect.disabled = busy || running;
 
   if (running) {
     els.remoteMode.textContent = status.remoteMode === "native"
@@ -91,6 +95,8 @@ els.start.addEventListener("click", async () => {
       avd: els.avd.value,
       deviceName: els.deviceName.value.trim() || "Ultimate TV OS",
       coldBoot: els.coldBoot.checked,
+      fullscreen: els.fullscreen.checked,
+      remoteMode: els.remoteModeSelect.value,
     });
   } catch (error) {
     setStatus({ state: "error", message: error?.message || String(error) });
