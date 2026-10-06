@@ -16,6 +16,7 @@ import {
   EmulatorDisplayStream,
   type TvFrame,
 } from "../emulator/grpcDisplay.js";
+import { waitForEmulatorGrpcEndpoint } from "../emulator/discovery.js";
 
 const session = new UltimateTvSession();
 const runtime = new RuntimeInstaller();
@@ -185,8 +186,15 @@ async function createTvSurface(
     height: snapshot.displayHeight ?? 1080,
   };
 
+  const endpoint = await waitForEmulatorGrpcEndpoint(
+    snapshot.serial,
+    20_000,
+  );
+
   displayStream = new EmulatorDisplayStream({
-    port: snapshot.grpcPort,
+    port: endpoint.port,
+    address: endpoint.address,
+    token: endpoint.token,
     appPath: app.getAppPath(),
     width: 1920,
     height: 1080,
