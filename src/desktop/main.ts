@@ -253,7 +253,13 @@ app.whenReady().then(() => {
     async (_event, options: { licenseAccepted: boolean }) =>
       runtime.install(Boolean(options?.licenseAccepted)),
   );
-  ipcMain.handle("runtime:remove", async () => runtime.remove());
+  ipcMain.handle("runtime:remove", async () => {
+    const state = session.status().state;
+    if (state !== "idle" && state !== "error") {
+      throw new Error("Stop Ultimate TV before resetting the runtime.");
+    }
+    return runtime.remove();
+  });
 
   ipcMain.handle("session:status", () => session.status());
   ipcMain.handle("session:avds", () => session.availableAvds());
