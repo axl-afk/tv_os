@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import fs from "node:fs";
 
 export type CommandResult = {
   ok: boolean;
@@ -35,14 +36,22 @@ export function run(
 export function spawnDetached(
   command: string,
   args: string[],
-  options: ProcessOptions = {},
+  options: ProcessOptions & { logFile?: string } = {},
 ) {
+  let logFd: number | undefined;
+  if (options.logFile) {
+    fs.mkdirSync(require("node:path").dirname(options.logFile), { recursive: true });
+    logFd = fs.openSync(options.logFile, "w");
+  }
+
   const child = spawn(command, args, {
     detached: true,
-    stdio: "ignore",
+    stdio: logFd === undefined ? "ignore" : ["ignore", logFd, logFd],
     env: options.env ? { ...process.env, ...options.env } : process.env,
     cwd: options.cwd,
   });
+
+  if (logFd !== undefined) fs.closeSync(logFd);
   child.unref();
   return child.pid;
 }
