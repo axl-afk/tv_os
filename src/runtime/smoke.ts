@@ -148,6 +148,32 @@ try {
     "[runtime-smoke] Guest mode provisioning verified; Google account setup is not required for launcher access.",
   );
 
+  const diagnostics = [
+    ["model", ["shell", "getprop", "ro.product.model"]],
+    ["manufacturer", ["shell", "getprop", "ro.product.manufacturer"]],
+    ["fingerprint", ["shell", "getprop", "ro.build.fingerprint"]],
+    ["build-tags", ["shell", "getprop", "ro.build.tags"]],
+    ["youtube", ["shell", "dumpsys", "package", "com.google.android.youtube.tv"]],
+    ["play-store", ["shell", "pm", "path", "com.android.vending"]],
+    ["display", ["shell", "dumpsys", "display"]],
+  ] as const;
+
+  for (const [name, args] of diagnostics) {
+    const result = run(tools.adb, ["-s", serial, ...args]);
+    const output = result.stdout
+      .split("\n")
+      .filter((line) =>
+        name === "youtube"
+          ? /versionName=|versionCode=|path=/.test(line)
+          : name === "display"
+            ? /3840|2160|refreshRate|fps|modeId/.test(line)
+            : true,
+      )
+      .slice(0, 20)
+      .join(" | ");
+    console.log(`[runtime-smoke] diag ${name}: ${output || result.stderr.trim() || "unavailable"}`);
+  }
+
   const endpoint = await waitForEmulatorGrpcEndpoint(serial, 20_000);
 
   await assertGrpcNotLanExposed(endpoint.port);
