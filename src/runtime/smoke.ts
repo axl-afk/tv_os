@@ -17,6 +17,7 @@ import { reserveFreeLoopbackPort } from "../lib/network.js";
 import { run } from "../lib/process.js";
 import { provisionAndroidTvGuest } from "../android/provision.js";
 import { RuntimeInstaller } from "./installer.js";
+import { prepareNativeAndroidTvRemoteService } from "../remote/nativeProxy.js";
 
 
 async function canConnect(address: string, port: number): Promise<boolean> {
@@ -146,6 +147,15 @@ try {
 
   console.log(
     "[runtime-smoke] Guest mode provisioning verified; Google account setup is not required for launcher access.",
+  );
+
+  await prepareNativeAndroidTvRemoteService(
+    tools.adb,
+    serial,
+    20_000,
+  );
+  console.log(
+    "[runtime-smoke] Google TV Remote Service is listening on 6466/6467.",
   );
 
   const diagnostics = [
