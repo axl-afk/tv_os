@@ -29,6 +29,7 @@ let mainWindow: BrowserWindow | null = null;
 let tvWindow: BrowserWindow | null = null;
 let displayStream: EmulatorDisplayStream | null = null;
 let tvInput: AdbInput | null = null;
+let tvGuestSize = { width: 1920, height: 1080 };
 let closingTvSurface = false;
 
 function rendererPath(file = "renderer.html") {
@@ -89,6 +90,7 @@ async function stopDisplayStream() {
   displayStream?.stop();
   displayStream = null;
   tvInput = null;
+  tvGuestSize = { width: 1920, height: 1080 };
 }
 
 async function closeTvSurface() {
@@ -178,6 +180,10 @@ async function createTvSurface(
   }
 
   tvInput = new AdbInput(tools.adb, snapshot.serial);
+  tvGuestSize = {
+    width: snapshot.displayWidth ?? 1920,
+    height: snapshot.displayHeight ?? 1080,
+  };
 
   displayStream = new EmulatorDisplayStream({
     port: snapshot.grpcPort,
@@ -315,8 +321,10 @@ app.whenReady().then(() => {
       const y = Math.min(1, Math.max(0, Number(point?.y ?? 0)));
 
       try {
-        // The managed AVD is configured as 3840x2160.
-        tvInput.tap(x * 3840, y * 2160);
+        tvInput.tap(
+          x * tvGuestSize.width,
+          y * tvGuestSize.height,
+        );
       } catch (error) {
         sendTv("tv:status", { error: String(error) });
       }
