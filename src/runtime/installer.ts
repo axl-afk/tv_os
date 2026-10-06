@@ -19,6 +19,7 @@ import {
   runtimeSdkRoot,
 } from "./paths.js";
 import { runtimeHostArch } from "./host.js";
+import { applyRuntimeStoragePolicy } from "./storage.js";
 import {
   discoverLatestEmulator,
   discoverLatestGoogleTvImage,
@@ -45,13 +46,73 @@ export type RuntimeInstallSnapshot = {
   systemImage?: string;
 };
 
-type RuntimeMetadata = {
-  installedAt: string;
-  emulatorUrl: string;
-  systemImagePackage: string;
-  apiLevel: number;
-  abi: string;
+export type RuntimeMetadata = {
+  installedAt?: string;
+  platformToolsUrl?: string;
+  emulatorUrl?: string;
+  systemImagePackage?: string;
+  apiLevel?: number;
+  abi?: string;
 };
+
+export type RuntimeInstallPlan = {
+  platformTools: boolean;
+  emulator: boolean;
+  systemImage: boolean;
+  createAvd: boolean;
+};
+
+export function computeRuntimeInstallPlan(input: {
+  metadata?: RuntimeMetadata | null;
+  latest: {
+    platformToolsUrl: string;
+    emulatorUrl: string;
+    systemImagePackage: string;
+    apiLevel: number;
+    abi: string;
+  };
+  hasAdb: boolean;
+  hasEmulator: boolean;
+  hasSystemImage: boolean;
+  hasAvd: boolean;
+}): RuntimeInstallPlan {
+  const metadata = input.metadata;
+
+  const platformToolsChanged =
+    Boolean(metadata?.platformToolsUrl) &&
+    metadata?.platformToolsUrl !== input.latest.platformToolsUrl;
+
+  const emulatorChanged =
+    Boolean(metadata?.emulatorUrl) &&
+    metadata?.emulatorUrl !== input.latest.emulatorUrl;
+
+  const imageChanged =
+    Boolean(metadata?.systemImagePackage) &&
+    (
+      metadata?.systemImagePackage !== input.latest.systemImagePackage ||
+      metadata?.apiLevel !== input.latest.apiLevel ||
+      metadata?.abi !== input.latest.abi
+    );
+
+  const systemImage = !input.hasSystemImage || imageChanged;
+
+  return {
+    platformTools: !input.hasAdb || platformToolsChanged,
+    emulator: !input.hasEmulator || emulatorChanged,
+    systemImage,
+    createAvd: !input.hasAvd || systemImage,
+  };
+}
+
+function readRuntimeMetadata(): RuntimeMetadata | null {
+  try {
+    return JSON.parse(
+      fs.readFileSync(runtimeMetadataPath(), "utf8"),
+    ) as RuntimeMetadata;
+  } catch {
+    return null;
+  }
+}
 
 function ensureSupportedHost() {
   if (!["darwin", "win32", "linux"].includes(process.platform)) {
@@ -311,16 +372,11 @@ export class RuntimeInstaller extends EventEmitter {
         discoverLatestPlatformTools(),
       ]);
 
-      await fsp.rm(path.join(runtimeSdkRoot(), "platform-tools"), { recursive: true, force: true });
-      await this.installZip(platformTools, "platform-tools", runtimeSdkRoot());
-
-      await fsp.rm(path.join(runtimeSdkRoot(), "emulator"), { recursive: true, force: true });
-      await this.installZip(emulator, "emulator", runtimeSdkRoot());
-
       if (!image.apiLevel || !image.abi || !image.packagePath) {
         throw new Error("Google TV image metadata is incomplete.");
       }
 
+      const metadata = readRuntimeMetadata();
       const imageDir = path.join(
         runtimeSdkRoot(),
         "system-images",
@@ -328,29 +384,143 @@ export class RuntimeInstaller extends EventEmitter {
         "google-tv",
         image.abi,
       );
-      await fsp.rm(imageDir, { recursive: true, force: true });
-      await fsp.mkdir(imageDir, { recursive: true });
-      await this.installZip(image, "google-tv-image", imageDir);
-      await normalizeSystemImage(imageDir);
 
-      this.update("configuring", "virtual-tv", 98, "Creating Ultimate TV virtual hardware…");
-      await this.createAvd(image.apiLevel, image.abi);
+      const plan = computeRuntimeInstallPlan({
+        metadata,
+        latest: {
+          platformToolsUrl: platformTools.url,
+          emulatorUrl: emulator.url,
+          systemImagePackage: image.packagePath,
+          apiLevel: image.apiLevel,
+          abi: image.abi,
+        },
+        hasAdb: fs.existsSync(runtimeExecutable("adb")),
+        hasEmulator: fs.existsSync(runtimeExecutable("emulator")),
+        hasSystemImage: fs.existsSync(path.join(imageDir, "system.img")),
+        hasAvd:
+          fs.existsSync(runtimeAvdIni()) &&
+          fs.existsSync(runtimeAvdDir()),
+      });
+
+      if (plan.platformTools) {
+        await fsp.rm(
+          path.join(runtimeSdkRoot(), "platform-tools"),
+          { recursive: true, force: true },
+        );
+        await this.installZip(
+          platformTools,
+          "platform-tools",
+          runtimeSdkRoot(),
+        );
+      } else {
+        this.update(
+          "checking",
+          "platform-tools",
+          undefined,
+          "ADB / platform tools already installed — reusing existing files.",
+        );
+      }
+
+      if (plan.emulator) {
+        await fsp.rm(
+          path.join(runtimeSdkRoot(), "emulator"),
+          { recursive: true, force: true },
+        );
+        await this.installZip(
+          emulator,
+          "emulator",
+          runtimeSdkRoot(),
+        );
+      } else {
+        this.update(
+          "checking",
+          "emulator",
+          undefined,
+          "TV virtualization engine already installed — reusing existing files.",
+        );
+      }
+
+      if (plan.systemImage) {
+        if (
+          metadata?.apiLevel &&
+          metadata?.abi &&
+          (
+            metadata.apiLevel !== image.apiLevel ||
+            metadata.abi !== image.abi
+          )
+        ) {
+          const previousImageDir = path.join(
+            runtimeSdkRoot(),
+            "system-images",
+            "android-" + metadata.apiLevel,
+            "google-tv",
+            metadata.abi,
+          );
+          if (previousImageDir !== imageDir) {
+            await fsp.rm(
+              previousImageDir,
+              { recursive: true, force: true },
+            );
+          }
+        }
+
+        await fsp.rm(
+          imageDir,
+          { recursive: true, force: true },
+        );
+        await fsp.mkdir(imageDir, { recursive: true });
+        await this.installZip(
+          image,
+          "google-tv-image",
+          imageDir,
+        );
+        await normalizeSystemImage(imageDir);
+      } else {
+        this.update(
+          "checking",
+          "google-tv-image",
+          undefined,
+          "Google TV system image already installed — reusing existing files.",
+        );
+      }
+
+      this.update(
+        "configuring",
+        "virtual-tv",
+        98,
+        plan.createAvd
+          ? "Creating Ultimate TV virtual hardware…"
+          : "Checking Ultimate TV virtual hardware…",
+      );
+
+      if (plan.createAvd) {
+        await this.createAvd(image.apiLevel, image.abi);
+      } else {
+        applyRuntimeStoragePolicy();
+      }
+
       await this.ensureExecutableBits();
 
-      const metadata: RuntimeMetadata = {
-        installedAt: new Date().toISOString(),
+      const nextMetadata: RuntimeMetadata = {
+        installedAt: metadata?.installedAt ?? new Date().toISOString(),
+        platformToolsUrl: platformTools.url,
         emulatorUrl: emulator.url,
         systemImagePackage: image.packagePath,
         apiLevel: image.apiLevel,
         abi: image.abi,
       };
-      await fsp.writeFile(runtimeMetadataPath(), JSON.stringify(metadata, null, 2) + "\n");
+      await fsp.writeFile(
+        runtimeMetadataPath(),
+        JSON.stringify(nextMetadata, null, 2) + "\n",
+      );
 
       this.update(
         "ready",
         "complete",
         100,
-        "Ultimate TV runtime is ready. Android Studio is not required.",
+        plan.platformTools || plan.emulator || plan.systemImage
+          ? "Ultimate TV runtime is ready. Only missing/outdated components were installed."
+          : "Ultimate TV runtime is already up to date. No SDK components were downloaded.",
       );
       return this.status();
     } catch (error) {
