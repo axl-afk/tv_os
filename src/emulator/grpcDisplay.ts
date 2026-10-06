@@ -55,7 +55,7 @@ export class EmulatorDisplayStream extends EventEmitter {
     }
 
     const client = new Controller(
-      `127.0.0.1:${this.options.port}`,
+      `localhost:${this.options.port}`,
       grpc.credentials.createInsecure(),
     );
     this.client = client;
