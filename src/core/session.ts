@@ -264,12 +264,55 @@ export class UltimateTvSession extends EventEmitter {
             activeRemoteMode = useNative ? "native" : "compatibility";
             remoteMessage = useNative
               ? "Native Google phone remote is available."
-              : "Experimental compatibility phone remote is available.";
+              : "Compatibility phone remote is available.";
           } catch (error) {
+            const nativeError =
+              error instanceof Error ? error.message : String(error);
+
             this.bridge = undefined;
-            remoteMessage =
-              "TV started, but phone remote is unavailable: " +
-              (error instanceof Error ? error.message : String(error));
+
+            if (useNative && preference === "auto") {
+              const fallback = new AndroidTvRemoteBridge(
+                new AdbInput(tools.adb, serial),
+                options.deviceName ?? "Ultimate TV OS",
+                {
+                  onPairingCode: (pairingCode) => {
+                    this.setState({
+                      ...this.snapshot,
+                      pairingCode,
+                      message: `Enter pairing code ${pairingCode} in the Google TV phone remote.`,
+                    });
+                  },
+                  onPaired: () => {
+                    this.setState({
+                      ...this.snapshot,
+                      pairingCode: undefined,
+                      message: "Phone paired through compatibility remote.",
+                    });
+                  },
+                },
+              );
+
+              try {
+                await fallback.start();
+                this.bridge = fallback;
+                activeRemoteMode = "compatibility";
+                remoteMessage =
+                  "Compatibility phone remote is available (native Google service did not start).";
+              } catch (fallbackError) {
+                remoteMessage =
+                  "TV started, but both phone remote backends failed. Native: " +
+                  nativeError +
+                  " Compatibility: " +
+                  (fallbackError instanceof Error
+                    ? fallbackError.message
+                    : String(fallbackError));
+              }
+            } else {
+              remoteMessage =
+                "TV started, but phone remote is unavailable: " +
+                nativeError;
+            }
           }
         }
       }
