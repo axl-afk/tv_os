@@ -54,14 +54,15 @@ export class EmulatorDisplayStream extends EventEmitter {
       throw new Error("Unable to load Android Emulator gRPC controller.");
     }
 
-    this.client = new Controller(
+    const client = new Controller(
       `127.0.0.1:${this.options.port}`,
       grpc.credentials.createInsecure(),
     );
+    this.client = client;
 
     await new Promise<void>((resolve, reject) => {
       const deadline = new Date(Date.now() + 15_000);
-      grpc.waitForClientReady(this.client, deadline, (error) => {
+      grpc.waitForClientReady(client, deadline, (error) => {
         if (error) reject(error);
         else resolve();
       });
@@ -72,14 +73,15 @@ export class EmulatorDisplayStream extends EventEmitter {
     const maxFps = Math.max(1, this.options.maxFps ?? 30);
     const minimumGapMs = 1000 / maxFps;
 
-    this.call = this.client.streamScreenshot({
+    const call = client.streamScreenshot({
       format: 0,
       width,
       height,
       display: 0,
     });
+    this.call = call;
 
-    this.call.on("data", (image: any) => {
+    call.on("data", (image: any) => {
       if (this.stopped) return;
 
       const now = Date.now();
@@ -109,12 +111,12 @@ export class EmulatorDisplayStream extends EventEmitter {
       this.emit("frame", frame);
     });
 
-    this.call.on("error", (error: grpc.ServiceError) => {
+    call.on("error", (error: grpc.ServiceError) => {
       if (this.stopped || error.code === grpc.status.CANCELLED) return;
       this.emit("error", error);
     });
 
-    this.call.on("end", () => {
+    call.on("end", () => {
       if (!this.stopped) this.emit("end");
     });
   }
