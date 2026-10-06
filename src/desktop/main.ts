@@ -365,20 +365,26 @@ app.whenReady().then(() => {
       },
     ) => {
       try {
+        const embedded = options.displayMode !== "native";
+
         const snapshot = await session.start({
           avd: options.avd,
           deviceName: options.deviceName,
           coldBoot: options.coldBoot,
-          embedded: true,
+          embedded,
           fullscreen: Boolean(options.fullscreen),
           remoteMode: options.remoteMode,
+          gpuMode: process.platform === "darwin" ? "host" : "auto",
         });
 
-        await createTvSurface(
-          snapshot,
-          options.displayId,
-          Boolean(options.fullscreen),
-        );
+        if (embedded) {
+          await createTvSurface(
+            snapshot,
+            options.displayId,
+            Boolean(options.fullscreen),
+          );
+        }
+
         return snapshot;
       } catch (error) {
         await stopTvCompletely();
