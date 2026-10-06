@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { runtimeTvAbi } from "./host.js";
 
 export const RUNTIME_AVD_NAME = "Ultimate_TV_OS";
 
@@ -31,8 +32,21 @@ export function runtimeExecutable(name: "adb" | "emulator"): string {
 }
 
 export function privateRuntimeReady(): boolean {
-  return fs.existsSync(runtimeExecutable("adb")) &&
+  const filesReady =
+    fs.existsSync(runtimeExecutable("adb")) &&
     fs.existsSync(runtimeExecutable("emulator")) &&
     fs.existsSync(runtimeAvdIni()) &&
     fs.existsSync(runtimeAvdDir());
+
+  if (!filesReady) return false;
+
+  try {
+    const metadata = JSON.parse(
+      fs.readFileSync(runtimeMetadataPath(), "utf8"),
+    ) as { abi?: string };
+
+    return metadata.abi === runtimeTvAbi();
+  } catch {
+    return false;
+  }
 }
