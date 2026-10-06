@@ -160,8 +160,12 @@ async function createTvSurface(
     minWidth: 720,
     minHeight: 405,
     frame: true,
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    trafficLightPosition:
+      process.platform === "darwin" ? { x: 14, y: 14 } : undefined,
     fullscreen: false,
     kiosk: false,
+    fullscreenable: true,
     resizable: true,
     minimizable: true,
     maximizable: true,
@@ -228,13 +232,30 @@ async function createTvSurface(
     20_000,
   );
 
+  const physicalWidth = Math.max(
+    1,
+    Math.round(target.size.width * target.scaleFactor),
+  );
+  const physicalHeight = Math.max(
+    1,
+    Math.round(target.size.height * target.scaleFactor),
+  );
+  const streamWidth = Math.min(
+    snapshot.displayWidth ?? physicalWidth,
+    physicalWidth,
+  );
+  const streamHeight = Math.min(
+    snapshot.displayHeight ?? physicalHeight,
+    physicalHeight,
+  );
+
   displayStream = new EmulatorDisplayStream({
     port: endpoint.port,
     address: endpoint.address,
     token: endpoint.token,
     appPath: app.getAppPath(),
-    width: 1280,
-    height: 720,
+    width: streamWidth,
+    height: streamHeight,
     maxFps: 60,
   });
 
@@ -422,19 +443,6 @@ app.whenReady().then(() => {
       }
     },
   );
-
-  ipcMain.handle("tv:toggle-fullscreen", () => {
-    if (!tvWindow || tvWindow.isDestroyed()) {
-      return { fullscreen: false };
-    }
-
-    if (tvWindow.isMinimized()) tvWindow.restore();
-    tvWindow.setFullScreen(!tvWindow.isFullScreen());
-
-    return {
-      fullscreen: tvWindow.isFullScreen(),
-    };
-  });
 
   ipcMain.handle("tv:exit", async () => stopTvCompletely());
 
