@@ -38,6 +38,21 @@ export class AdbInput {
     }
   }
 
+  tap(x: number, y: number) {
+    const args = this.serial ? ["-s", this.serial] : [];
+    args.push(
+      "shell",
+      "input",
+      "tap",
+      String(Math.max(0, Math.round(x))),
+      String(Math.max(0, Math.round(y))),
+    );
+    const result = run(this.adbPath, args);
+    if (!result.ok) {
+      throw new Error(result.stderr.trim() || "ADB tap injection failed");
+    }
+  }
+
   text(value: string) {
     const escaped = value.replace(/ /g, "%s");
     const args = this.serial ? ["-s", this.serial] : [];
