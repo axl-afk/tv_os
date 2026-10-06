@@ -1,6 +1,6 @@
 {
   "name": "ultimate-tv-os",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "description": "Software-defined TV host and Android TV remote bridge",
