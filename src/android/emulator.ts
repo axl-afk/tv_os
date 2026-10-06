@@ -6,6 +6,7 @@ export type LaunchOptions = {
   coldBoot?: boolean;
   writableSystem?: boolean;
   headless?: boolean;
+  gpuMode?: string;
   environment?: NodeJS.ProcessEnv;
 };
 
@@ -14,7 +15,7 @@ export function launchTvEmulator(options: LaunchOptions): number | undefined {
     `@${options.avd}`,
     "-no-boot-anim",
     "-gpu",
-    "auto",
+    options.gpuMode ?? "auto",
     "-no-snapshot-save",
   ];
 
