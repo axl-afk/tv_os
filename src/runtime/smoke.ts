@@ -12,6 +12,7 @@ import {
   waitForNewAdbDevice,
 } from "../android/readiness.js";
 import { EmulatorDisplayStream } from "../emulator/grpcDisplay.js";
+import { waitForEmulatorGrpcEndpoint } from "../emulator/discovery.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
 import { RuntimeInstaller } from "./installer.js";
 
@@ -115,11 +116,17 @@ try {
     "[runtime-smoke] Google TV reached sys.boot_completed=1.",
   );
 
-  await assertGrpcNotLanExposed(grpcPort);
-  console.log("[runtime-smoke] gRPC endpoint is not reachable on non-loopback IPv4 addresses.");
+  const endpoint = await waitForEmulatorGrpcEndpoint(serial, 20_000);
+
+  await assertGrpcNotLanExposed(endpoint.port);
+  console.log(
+    "[runtime-smoke] Secure gRPC discovery found; endpoint is not reachable on non-loopback IPv4 addresses.",
+  );
 
   display = new EmulatorDisplayStream({
-    port: grpcPort,
+    port: endpoint.port,
+    address: endpoint.address,
+    token: endpoint.token,
     appPath: process.cwd(),
     width: 1280,
     height: 720,
