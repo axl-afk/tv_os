@@ -55,3 +55,41 @@ export function stopEmulator(adbPath: string, serial: string): void {
     throw new Error(result.stderr.trim() || `Unable to stop emulator ${serial}.`);
   }
 }
+
+export function findRunningAvdSerials(
+  adbPath: string,
+  avdName: string,
+): string[] {
+  const matches: string[] = [];
+
+  for (const serial of listAdbDevices(adbPath)) {
+    if (!serial.startsWith("emulator-")) continue;
+
+    const result = run(adbPath, [
+      "-s",
+      serial,
+      "emu",
+      "avd",
+      "name",
+    ]);
+
+    if (result.ok && result.stdout.trim().split(/\r?\n/)[0] === avdName) {
+      matches.push(serial);
+    }
+  }
+
+  return matches;
+}
+
+export function stopRunningAvdInstances(
+  adbPath: string,
+  avdName: string,
+): void {
+  for (const serial of findRunningAvdSerials(adbPath, avdName)) {
+    try {
+      stopEmulator(adbPath, serial);
+    } catch {
+      // Best-effort cleanup of stale private runtime instances.
+    }
+  }
+}
