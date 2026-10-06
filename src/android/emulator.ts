@@ -12,7 +12,9 @@ export type LaunchOptions = {
   environment?: NodeJS.ProcessEnv;
 };
 
-export function launchTvEmulator(options: LaunchOptions): number | undefined {
+export function buildEmulatorArgs(
+  options: Omit<LaunchOptions, "emulatorPath" | "environment">,
+): string[] {
   const args = [
     `@${options.avd}`,
     "-no-boot-anim",
@@ -26,11 +28,15 @@ export function launchTvEmulator(options: LaunchOptions): number | undefined {
   if (options.headless) args.push("-no-window");
   if (options.noAudio) args.push("-no-audio");
   if (options.grpcPort) {
-    // Bind the emulator-control endpoint to host loopback only.
-    // The embedded TV renderer is local to Ultimate TV OS and this
-    // control surface must never be reachable from the LAN.
+    // The display-control endpoint is private to Ultimate TV OS.
     args.push("-grpc", `localhost:${options.grpcPort}`);
   }
+
+  return args;
+}
+
+export function launchTvEmulator(options: LaunchOptions): number | undefined {
+  const args = buildEmulatorArgs(options);
 
   return spawnDetached(options.emulatorPath, args, {
     env: options.environment,
