@@ -3,19 +3,13 @@ const api = window.ultimateTvSurface;
 const frameEl = document.getElementById("frame");
 const boot = document.getElementById("boot");
 const bootText = document.getElementById("bootText");
-const controls = document.getElementById("controls");
-const fullscreenBtn = document.getElementById("fullscreenBtn");
-const exitBtn = document.getElementById("exitBtn");
-const surfaceStatus = document.getElementById("surfaceStatus");
 
 let sourceWidth = 1280;
 let sourceHeight = 720;
-let hideTimer = null;
 let latestFrame = null;
 let rafScheduled = false;
 let textureWidth = 0;
 let textureHeight = 0;
-let isFullscreen = false;
 
 const gl = frameEl.getContext("webgl", {
   alpha: false,
@@ -232,13 +226,7 @@ api.onFrame((frame) => {
   scheduleFrame();
 });
 
-api.onWindowState((state) => {
-  isFullscreen = Boolean(state?.fullscreen);
-  fullscreenBtn.textContent = isFullscreen ? "Windowed" : "Fullscreen";
-});
-
 api.onStatus((status) => {
-  surfaceStatus.textContent = status?.message || "Embedded TV mode";
   if (status?.error) {
     boot.classList.remove("hidden");
     bootText.textContent = status.error;
@@ -252,36 +240,7 @@ window.addEventListener("resize", () => {
   setLetterboxedViewport();
 });
 
-function showControls() {
-  document.body.classList.add("controls-visible");
-  controls.classList.add("visible");
-  clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => {
-    controls.classList.remove("visible");
-    document.body.classList.remove("controls-visible");
-  }, 2200);
-}
-
-window.addEventListener("mousemove", showControls);
-window.addEventListener("mousedown", showControls);
-
 window.addEventListener("keydown", (event) => {
-  const fullscreenShortcut =
-    event.key === "F11" ||
-    (event.metaKey && event.ctrlKey && event.key.toLowerCase() === "f");
-
-  if (fullscreenShortcut) {
-    event.preventDefault();
-    api.toggleFullscreen();
-    return;
-  }
-
-  if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "q") {
-    event.preventDefault();
-    api.exit();
-    return;
-  }
-
   const map = {
     ArrowUp: 19,
     ArrowDown: 20,
@@ -343,9 +302,5 @@ frameEl.addEventListener("click", (event) => {
   api.tap(localX / drawnWidth, localY / drawnHeight);
 });
 
-fullscreenBtn.addEventListener("click", () => api.toggleFullscreen());
-exitBtn.addEventListener("click", () => api.exit());
-
 resizeCanvas();
 gl.clear(gl.COLOR_BUFFER_BIT);
-showControls();
