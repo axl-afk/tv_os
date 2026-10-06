@@ -92,9 +92,7 @@ export class AndroidTvRemoteBridge {
       protocol: "tcp",
       port: REMOTE_PORT,
       txt: {
-        bt: "02:55:4C:54:56:02",
-        fn: this.deviceName,
-        md: "Ultimate Virtual TV Gen 1",
+        bt: "02:55:4C:54:56:01",
       },
     });
 
@@ -150,8 +148,9 @@ export class AndroidTvRemoteBridge {
               protocolVersion: 2,
               status: 200,
               pairingOption: {
-                // The phone is the INPUT device; the virtual TV is the DISPLAY/OUTPUT device.
-                preferredRole: 2,
+                // Real Android TV services ask the phone to take the INPUT role
+                // and advertise a 6-character hexadecimal code on the TV.
+                preferredRole: 1,
                 outputEncodings: [{ type: 3, symbolLength: 6 }],
               },
             }),
@@ -237,23 +236,23 @@ export class AndroidTvRemoteBridge {
     let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
     let ping = 1;
 
+    // A real TV speaks first and advertises TV-side protocol capabilities.
+    // Values in the 637/639 range are used by current Android/Google TV
+    // Remote Service builds. 639 covers ping, keys, IME, power, volume and
+    // app-link capabilities expected by the Google TV mobile app.
     socket.write(
       encodeDelimited(RemoteMessage, {
         remoteConfigure: {
-          code1: 622,
+          code1: 639,
           deviceInfo: {
             vendor: "Ultimate TV",
-            model: "Virtual TV Gen 1",
-            packageName: "dev.ultimatetv.host",
-            appVersion: "0.1.0",
+            model: "Ultimate TV OS",
+            unknown1: 1,
+            unknown2: "10",
+            packageName: "com.google.android.tv.remote.service",
+            appVersion: "6.1",
           },
         },
-      }),
-    );
-
-    socket.write(
-      encodeDelimited(RemoteMessage, {
-        remoteSetActive: { active: 622 },
       }),
     );
 
@@ -277,10 +276,26 @@ export class AndroidTvRemoteBridge {
           bytes: Buffer,
         }) as Record<string, any>;
 
-        if (msg.remoteKeyInject) {
+        if (msg.remoteConfigure) {
+          // Current Google TV clients answer the TV's configuration first.
+          // The TV then asks the client to mark that capability set active.
+          socket.write(
+            encodeDelimited(RemoteMessage, {
+              remoteSetActive: {},
+            }),
+          );
+        } else if (msg.remoteSetActive) {
+          socket.write(
+            encodeDelimited(RemoteMessage, {
+              remoteStart: { started: true },
+            }),
+          );
+        } else if (msg.remoteKeyInject) {
           // Direction 3 is a short press in Android TV Remote v2.
-          // Long-press start/end are deliberately ignored in v0.1.
-          if (msg.remoteKeyInject.direction === 3 || msg.remoteKeyInject.direction === 0) {
+          if (
+            msg.remoteKeyInject.direction === 3 ||
+            msg.remoteKeyInject.direction === 0
+          ) {
             try {
               this.input.key(Number(msg.remoteKeyInject.keyCode));
             } catch (error) {
@@ -290,13 +305,19 @@ export class AndroidTvRemoteBridge {
         } else if (msg.remotePingRequest) {
           socket.write(
             encodeDelimited(RemoteMessage, {
-              remotePingResponse: { val1: msg.remotePingRequest.val1 ?? 0 },
+              remotePingResponse: {
+                val1: msg.remotePingRequest.val1 ?? 0,
+              },
             }),
           );
         } else if (msg.remoteImeBatchEdit?.editInfo?.insert) {
-          // IME batching is richer than plain text injection; keep this hook explicit
-          // so it can be expanded without pretending full keyboard support exists.
-          console.log("[remote] IME edit received (text bridge TODO)");
+          try {
+            this.input.text(
+              String(msg.remoteImeBatchEdit.editInfo.insert),
+            );
+          } catch (error) {
+            console.error("[remote] IME text injection failed:", error);
+          }
         }
       }
     });
