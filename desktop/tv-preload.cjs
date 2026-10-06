@@ -18,5 +18,11 @@ contextBridge.exposeInMainWorld("ultimateTvSurface", {
   key: (keyCode) => ipcRenderer.send("tv:key", keyCode),
   text: (value) => ipcRenderer.send("tv:text", value),
   tap: (x, y) => ipcRenderer.send("tv:tap", { x, y }),
+  toggleFullscreen: () => ipcRenderer.invoke("tv:toggle-fullscreen"),
+  onWindowState: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on("tv:window-state", listener);
+    return () => ipcRenderer.removeListener("tv:window-state", listener);
+  },
   exit: () => ipcRenderer.invoke("tv:exit"),
 });
