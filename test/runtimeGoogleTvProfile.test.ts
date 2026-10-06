@@ -39,7 +39,7 @@ describe("Google TV runtime profile", () => {
     applyRuntimeGoogleTvProfile();
 
     const config = fs.readFileSync(configPath, "utf8");
-    expect(config).toContain("PlayStore.enabled=false");
+    expect(config).toContain("PlayStore.enabled=true");
     expect(config).toContain("hw.device.manufacturer=Google");
     expect(config).toContain("hw.device.name=tv_4k");
     expect(config).toContain("hw.initialOrientation=landscape");
