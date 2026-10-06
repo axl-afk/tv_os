@@ -56,8 +56,16 @@ app.whenReady().then(() => {
   ipcMain.handle("session:avds", () => session.availableAvds());
   ipcMain.handle(
     "session:start",
-    async (_event, options: { avd: string; deviceName?: string; coldBoot?: boolean }) =>
-      session.start(options),
+    async (
+      _event,
+      options: {
+        avd: string;
+        deviceName?: string;
+        coldBoot?: boolean;
+        fullscreen?: boolean;
+        remoteMode?: "auto" | "native" | "compatibility";
+      },
+    ) => session.start(options),
   );
   ipcMain.handle("session:stop", async () => session.stop());
 
