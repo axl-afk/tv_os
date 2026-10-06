@@ -185,7 +185,7 @@ try {
       resolve({
         width: frame.width,
         height: frame.height,
-        bytes: frame.png.length,
+        bytes: frame.pixels.length,
       });
     });
 
