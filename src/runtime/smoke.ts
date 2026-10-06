@@ -149,14 +149,42 @@ try {
     "[runtime-smoke] Guest mode provisioning verified; Google account setup is not required for launcher access.",
   );
 
-  await prepareNativeAndroidTvRemoteService(
-    tools.adb,
-    serial,
-    20_000,
-  );
-  console.log(
-    "[runtime-smoke] Google TV Remote Service is listening on 6466/6467.",
-  );
+  const remoteDiagnostics = [
+    ["remote-package", ["shell", "dumpsys", "package", "com.google.android.tv.remote.service"]],
+    ["remote-services", ["shell", "dumpsys", "activity", "services", "com.google.android.tv.remote.service"]],
+    ["remote-process", ["shell", "pidof", "com.google.android.tv.remote.service"]],
+    ["remote-resolve-main", ["shell", "cmd", "package", "resolve-activity", "--brief", "-a", "android.intent.action.MAIN", "com.google.android.tv.remote.service"]],
+  ] as const;
+
+  for (const [name, args] of remoteDiagnostics) {
+    const result = run(tools.adb, ["-s", serial, ...args]);
+    const output = result.stdout
+      .split("\n")
+      .filter((line) =>
+        /Service|Receiver|Activity|com\.google\.android\.tv\.remote\.service|versionName=|versionCode=|enabled=|exported=|permission=|6466|6467|Remote|Pair/i.test(line),
+      )
+      .slice(0, 120)
+      .join(" | ");
+    console.log(
+      `[runtime-smoke] diag ${name}: ${output || result.stdout.trim() || result.stderr.trim() || "unavailable"}`,
+    );
+  }
+
+  try {
+    await prepareNativeAndroidTvRemoteService(
+      tools.adb,
+      serial,
+      20_000,
+    );
+    console.log(
+      "[runtime-smoke] Google TV Remote Service is listening on 6466/6467.",
+    );
+  } catch (error) {
+    console.log(
+      "[runtime-smoke] Google TV Remote Service readiness probe failed: " +
+        (error instanceof Error ? error.message : String(error)),
+    );
+  }
 
   const diagnostics = [
     ["model", ["shell", "getprop", "ro.product.model"]],
