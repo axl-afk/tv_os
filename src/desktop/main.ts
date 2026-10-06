@@ -85,7 +85,7 @@ function createWindow() {
 
   session.on("status", (status) => {
     sendMain("session:status", status);
-    sendTv("tv:status", { message: status.message });
+    sendTv("tv:status", status);
   });
 
   runtime.on("status", (status) => sendMain("runtime:status", status));
