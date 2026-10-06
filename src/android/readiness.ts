@@ -1,4 +1,4 @@
-import { run } from "../lib/process.js";
+import { processIsAlive, readLogTail, run } from "../lib/process.js";
 import { listAdbDevices } from "./sdk.js";
 
 function sleep(ms: number) {
@@ -9,21 +9,36 @@ export async function waitForNewAdbDevice(
   adbPath: string,
   before: Set<string>,
   timeoutMs = 120_000,
+  environment?: NodeJS.ProcessEnv,
+  emulatorPid?: number,
+  emulatorLogFile?: string,
 ): Promise<string> {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    const current = listAdbDevices(adbPath);
+    const current = listAdbDevices(adbPath, environment);
     const added = current.find((serial) => !before.has(serial));
     if (added) return added;
 
     const emulator = current.find((serial) => serial.startsWith("emulator-"));
     if (emulator && before.size === 0) return emulator;
 
+    if (emulatorPid && !processIsAlive(emulatorPid)) {
+      const detail = readLogTail(emulatorLogFile);
+      throw new Error(
+        "Android TV engine exited before ADB connected." +
+          (detail ? "\n\nEmulator output:\n" + detail : ""),
+      );
+    }
+
     await sleep(1000);
   }
 
-  throw new Error("Timed out waiting for the Android TV emulator to appear in ADB.");
+  const detail = readLogTail(emulatorLogFile);
+  throw new Error(
+    "Timed out waiting for the Android TV emulator to appear in ADB." +
+      (detail ? "\n\nEmulator output:\n" + detail : ""),
+  );
 }
 
 export async function waitForAndroidBoot(
