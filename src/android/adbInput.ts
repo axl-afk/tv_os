@@ -1,5 +1,12 @@
 import { run } from "../lib/process.js";
 
+export function encodeAdbInputText(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/([&$()!<>|;*~"'\`%])/g, "\\$1")
+    .replace(/ /g, "%s");
+}
+
 export const AndroidKeyCode: Record<number, number> = {
   3: 3,    // HOME
   4: 4,    // BACK
@@ -54,7 +61,8 @@ export class AdbInput {
   }
 
   text(value: string) {
-    const escaped = value.replace(/ /g, "%s");
+    if (!value) return;
+    const escaped = encodeAdbInputText(value);
     const args = this.serial ? ["-s", this.serial] : [];
     args.push("shell", "input", "text", escaped);
     const result = run(this.adbPath, args);
