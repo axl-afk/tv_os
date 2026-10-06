@@ -128,6 +128,7 @@ async function stopTvCompletely() {
 async function createTvSurface(
   snapshot: SessionSnapshot,
   requestedDisplayId?: string,
+  startFullscreen = false,
 ) {
   if (!snapshot.grpcPort || !snapshot.serial) {
     throw new Error(
@@ -143,14 +144,28 @@ async function createTvSurface(
     displays.find((display) => String(display.id) === requestedDisplayId) ??
     primary;
 
+  const workArea = target.workArea;
+  const windowWidth = Math.min(1280, workArea.width);
+  const windowHeight = Math.min(720, workArea.height);
+  const windowX =
+    workArea.x + Math.max(0, Math.floor((workArea.width - windowWidth) / 2));
+  const windowY =
+    workArea.y + Math.max(0, Math.floor((workArea.height - windowHeight) / 2));
+
   tvWindow = new BrowserWindow({
-    x: target.bounds.x,
-    y: target.bounds.y,
-    width: target.bounds.width,
-    height: target.bounds.height,
-    frame: false,
-    fullscreen: true,
-    kiosk: true,
+    x: windowX,
+    y: windowY,
+    width: windowWidth,
+    height: windowHeight,
+    minWidth: 720,
+    minHeight: 405,
+    frame: true,
+    fullscreen: false,
+    kiosk: false,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    closable: true,
     backgroundColor: "#000000",
     show: false,
     autoHideMenuBar: true,
@@ -165,6 +180,22 @@ async function createTvSurface(
   });
 
   tvWindow.setMenuBarVisibility(false);
+
+  const sendWindowState = () => {
+    if (!tvWindow || tvWindow.isDestroyed()) return;
+    sendTv("tv:window-state", {
+      fullscreen: tvWindow.isFullScreen(),
+      maximized: tvWindow.isMaximized(),
+      minimized: tvWindow.isMinimized(),
+    });
+  };
+
+  tvWindow.on("enter-full-screen", sendWindowState);
+  tvWindow.on("leave-full-screen", sendWindowState);
+  tvWindow.on("maximize", sendWindowState);
+  tvWindow.on("unmaximize", sendWindowState);
+  tvWindow.on("minimize", sendWindowState);
+  tvWindow.on("restore", sendWindowState);
 
   tvWindow.on("closed", () => {
     tvWindow = null;
@@ -236,14 +267,14 @@ async function createTvSurface(
 
   await displayStream.start();
 
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.hide();
-  }
-
   tvWindow.show();
   tvWindow.focus();
-  tvWindow.setKiosk(true);
-  tvWindow.setFullScreen(true);
+
+  if (startFullscreen) {
+    tvWindow.setFullScreen(true);
+  }
+
+  sendWindowState();
 }
 
 app.on("second-instance", () => {
@@ -304,6 +335,7 @@ app.whenReady().then(() => {
         deviceName?: string;
         coldBoot?: boolean;
         displayId?: string;
+        fullscreen?: boolean;
         remoteMode?: "off" | "auto" | "native" | "compatibility";
       },
     ) => {
@@ -313,11 +345,15 @@ app.whenReady().then(() => {
           deviceName: options.deviceName,
           coldBoot: options.coldBoot,
           embedded: true,
-          fullscreen: true,
+          fullscreen: Boolean(options.fullscreen),
           remoteMode: options.remoteMode,
         });
 
-        await createTvSurface(snapshot, options.displayId);
+        await createTvSurface(
+          snapshot,
+          options.displayId,
+          Boolean(options.fullscreen),
+        );
         return snapshot;
       } catch (error) {
         await stopTvCompletely();
@@ -385,6 +421,19 @@ app.whenReady().then(() => {
       }
     },
   );
+
+  ipcMain.handle("tv:toggle-fullscreen", () => {
+    if (!tvWindow || tvWindow.isDestroyed()) {
+      return { fullscreen: false };
+    }
+
+    if (tvWindow.isMinimized()) tvWindow.restore();
+    tvWindow.setFullScreen(!tvWindow.isFullScreen());
+
+    return {
+      fullscreen: tvWindow.isFullScreen(),
+    };
+  });
 
   ipcMain.handle("tv:exit", async () => stopTvCompletely());
 
