@@ -10,6 +10,7 @@ import { reserveFreeLoopbackPort } from "../lib/network.js";
 import { terminateProcessTree } from "../lib/process.js";
 import { runtimeRoot } from "../runtime/paths.js";
 import {
+  applyRuntimeGoogleTvProfile,
   applyRuntimeStoragePolicy,
   runtimeFreeSpaceBytes,
 } from "../runtime/storage.js";
@@ -94,6 +95,7 @@ export class UltimateTvSession extends EventEmitter {
     this.adbPath = tools.adb;
 
     applyRuntimeStoragePolicy();
+    applyRuntimeGoogleTvProfile();
 
     const freeBytes = runtimeFreeSpaceBytes();
     if (freeBytes !== null && freeBytes < 6 * 1024 * 1024 * 1024) {
