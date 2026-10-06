@@ -46,7 +46,7 @@ export function applyRuntimeGoogleTvProfile(): void {
   if (!fs.existsSync(configPath)) return;
 
   const profile: Record<string, string> = {
-    "PlayStore.enabled": "false",
+    "PlayStore.enabled": "true",
     "hw.device.manufacturer": "Google",
     "hw.device.name": "tv_4k",
     "hw.initialOrientation": "landscape",
