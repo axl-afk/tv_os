@@ -1,3 +1,5 @@
+import net from "node:net";
+import os from "node:os";
 import {
   detectAndroidTools,
   listAdbDevices,
@@ -12,6 +14,37 @@ import {
 import { EmulatorDisplayStream } from "../emulator/grpcDisplay.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
 import { RuntimeInstaller } from "./installer.js";
+
+
+async function canConnect(address: string, port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: address, port });
+    const done = (value: boolean) => {
+      socket.destroy();
+      resolve(value);
+    };
+    socket.setTimeout(1000);
+    socket.once("connect", () => done(true));
+    socket.once("timeout", () => done(false));
+    socket.once("error", () => done(false));
+  });
+}
+
+async function assertGrpcNotLanExposed(port: number) {
+  const addresses = Object.values(os.networkInterfaces())
+    .flat()
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .filter((entry) => !entry.internal && entry.family === "IPv4")
+    .map((entry) => entry.address);
+
+  for (const address of addresses) {
+    if (await canConnect(address, port)) {
+      throw new Error(
+        `Security check failed: emulator gRPC port ${port} is reachable via LAN address ${address}.`,
+      );
+    }
+  }
+}
 
 const installer = new RuntimeInstaller();
 
@@ -81,6 +114,9 @@ try {
   console.log(
     "[runtime-smoke] Google TV reached sys.boot_completed=1.",
   );
+
+  await assertGrpcNotLanExposed(grpcPort);
+  console.log("[runtime-smoke] gRPC endpoint is not reachable on non-loopback IPv4 addresses.");
 
   display = new EmulatorDisplayStream({
     port: grpcPort,
