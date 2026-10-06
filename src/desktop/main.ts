@@ -141,6 +141,7 @@ async function createTvSurface(
     height: target.bounds.height,
     frame: false,
     fullscreen: true,
+    kiosk: true,
     backgroundColor: "#000000",
     show: false,
     autoHideMenuBar: true,
@@ -210,6 +211,7 @@ async function createTvSurface(
 
   tvWindow.show();
   tvWindow.focus();
+  tvWindow.setKiosk(true);
   tvWindow.setFullScreen(true);
 }
 
