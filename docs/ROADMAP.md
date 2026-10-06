@@ -18,24 +18,39 @@ Status: **COMPLETE — hardware verified on Apple Silicon macOS with the Google 
 
 Exit criterion: a supported phone can discover the host, pair, and navigate a running TV guest. **Verified successfully with the Google TV app controlling the virtual TV through the native Android TV Remote Service proxy.**
 
-## M1 — macOS reference product
+## M1 — standalone desktop product
 
-- Native macOS launcher UI.
-- one-click guest creation.
-- one-click Start TV / Exit TV.
-- display selection.
-- proper fullscreen.
-- guest readiness detection.
-- remote service starts automatically.
-- suspend/resume.
-- audio routing.
-- controller input.
-- robust text input.
-- voice forwarding investigation.
-- automatic recovery if ADB/emulator restarts.
-- signed/notarized macOS application.
+Status: **IN PROGRESS — Android Studio dependency removed from the normal user flow**
 
-Exit criterion: a non-developer can install and use Ultimate TV without Terminal.
+Completed:
+
+- cross-platform desktop launcher on macOS, Windows, and Linux;
+- first-run TV runtime installer;
+- Google repository/package discovery;
+- checksum verification when Google publishes a checksum;
+- hardened ZIP extraction;
+- private ADB/platform-tools installation;
+- private Android virtualization engine installation;
+- private Google TV system-image installation;
+- automatic `Ultimate_TV_OS` virtual-device creation;
+- one-click Start TV / Stop TV;
+- Android boot/readiness detection;
+- runtime reset/repair path;
+- native Google Remote Service proxy;
+- packaged DMG/ZIP, EXE, AppImage, and DEB builds;
+- live Google package-manifest monitoring.
+
+Remaining before M1 is truly consumer-ready:
+
+- replace the external emulator window with an Ultimate TV-owned embedded/borderless TV surface;
+- reliable monitor selection and fullscreen behavior;
+- remote tap/OK fix;
+- suspend/resume and crash recovery;
+- polished audio/display routing;
+- production code signing/notarization;
+- automatic application/runtime updates.
+
+Exit criterion: a non-developer can install Ultimate TV, install its runtime from inside the app, and use the TV without Terminal or Android Studio.
 
 ## M2 — virtual hardware contract
 
