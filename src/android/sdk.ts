@@ -19,11 +19,17 @@ export function detectAndroidTools(): AndroidTools {
   const roots = [
     process.env.ANDROID_SDK_ROOT,
     process.env.ANDROID_HOME,
-    process.platform === "darwin" ? path.join(home, "Library/Android/sdk") : null,
+    process.platform === "darwin" ? path.join(home, "Library", "Android", "sdk") : null,
     process.platform === "win32" && process.env.LOCALAPPDATA
-      ? path.join(process.env.LOCALAPPDATA, "Android/Sdk")
+      ? path.join(process.env.LOCALAPPDATA, "Android", "Sdk")
       : null,
-    process.platform === "linux" ? path.join(home, "Android/Sdk") : null,
+    process.platform === "win32" && process.env.USERPROFILE
+      ? path.join(process.env.USERPROFILE, "AppData", "Local", "Android", "Sdk")
+      : null,
+    process.platform === "linux" ? path.join(home, "Android", "Sdk") : null,
+    process.platform === "linux" ? path.join(home, "Android", "sdk") : null,
+    process.platform === "linux" ? "/opt/android-sdk" : null,
+    process.platform === "linux" ? "/usr/lib/android-sdk" : null,
   ].filter((value): value is string => Boolean(value));
 
   const sdkRoot = roots.find((root) => fs.existsSync(root)) ?? null;
