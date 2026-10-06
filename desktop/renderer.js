@@ -11,6 +11,7 @@ const els = {
   coldBoot: document.getElementById("coldBoot"),
   startFullscreen: document.getElementById("startFullscreen"),
   displaySelect: document.getElementById("displaySelect"),
+  displayModeSelect: document.getElementById("displayModeSelect"),
   remoteModeSelect: document.getElementById("remoteModeSelect"),
   start: document.getElementById("startBtn"),
   stop: document.getElementById("stopBtn"),
@@ -55,6 +56,7 @@ function updateControls() {
   els.coldBoot.disabled = busy || running;
   els.startFullscreen.disabled = busy || running;
   els.displaySelect.disabled = busy || running;
+  els.displayModeSelect.disabled = busy || running;
   els.remoteModeSelect.disabled = busy || running;
 }
 
@@ -263,6 +265,7 @@ els.start.addEventListener("click", async () => {
       deviceName: els.deviceName.value.trim() || "Ultimate TV OS",
       coldBoot: els.coldBoot.checked,
       displayId: els.displaySelect.value,
+      displayMode: els.displayModeSelect.value,
       fullscreen: els.startFullscreen.checked,
       remoteMode: els.remoteModeSelect.value,
     });
