@@ -42,6 +42,7 @@ export type RuntimeInstallSnapshot = {
   progress?: number;
   message: string;
   ready: boolean;
+  present: boolean;
   runtimeRoot: string;
   systemImage?: string;
 };
@@ -333,9 +334,11 @@ export class RuntimeInstaller extends EventEmitter {
   constructor() {
     super();
     const ready = privateRuntimeReady();
+    const present = fs.existsSync(runtimeRoot());
     this.snapshot = {
       state: ready ? "ready" : "not-installed",
       ready,
+      present,
       message: ready ? "Ultimate TV runtime is installed." : "TV runtime is not installed yet.",
       runtimeRoot: runtimeRoot(),
     };
@@ -343,9 +346,11 @@ export class RuntimeInstaller extends EventEmitter {
 
   status(): RuntimeInstallSnapshot {
     const ready = privateRuntimeReady();
+    const present = fs.existsSync(runtimeRoot());
     return {
       ...this.snapshot,
       ready,
+      present,
       state: ready && !this.installing ? "ready" : this.snapshot.state,
     };
   }
@@ -540,6 +545,7 @@ export class RuntimeInstaller extends EventEmitter {
     this.snapshot = {
       state: "not-installed",
       ready: false,
+      present: false,
       message: "TV runtime removed.",
       runtimeRoot: runtimeRoot(),
     };
@@ -675,6 +681,7 @@ export class RuntimeInstaller extends EventEmitter {
       progress,
       message,
       ready: privateRuntimeReady(),
+      present: fs.existsSync(runtimeRoot()),
       runtimeRoot: runtimeRoot(),
     };
     this.emit("status", this.status());
