@@ -87,7 +87,11 @@ export class AndroidTvRemoteBridge {
       type: "androidtvremote2",
       protocol: "tcp",
       port: REMOTE_PORT,
-      txt: { txtvers: "1" },
+      txt: {
+        bt: "02:55:4C:54:56:02",
+        fn: this.deviceName,
+        md: "Ultimate Virtual TV Gen 1",
+      },
     });
 
     console.log(`[remote] Advertising "${this.deviceName}" on the local network`);
@@ -109,6 +113,9 @@ export class AndroidTvRemoteBridge {
     const state: PairingState = {};
 
     socket.on("data", (chunk) => {
+      console.log(
+        `[pairing] RX ${chunk.length} bytes: ${Buffer.from(chunk).toString("hex")}`,
+      );
       buffer = Buffer.concat([buffer, chunk]);
       const parsed = decodeFrames(PairingMessage, buffer);
       buffer = parsed.rest;
@@ -119,6 +126,8 @@ export class AndroidTvRemoteBridge {
           enums: Number,
           bytes: Buffer,
         }) as Record<string, any>;
+
+        console.log("[pairing] decoded:", JSON.stringify(msg));
 
         if (msg.pairingRequest) {
           socket.write(
@@ -137,8 +146,9 @@ export class AndroidTvRemoteBridge {
               protocolVersion: 2,
               status: 200,
               pairingOption: {
-                preferredRole: 1,
-                inputEncodings: [{ type: 3, symbolLength: 6 }],
+                // The phone is the INPUT device; the virtual TV is the DISPLAY/OUTPUT device.
+                preferredRole: 2,
+                outputEncodings: [{ type: 3, symbolLength: 6 }],
               },
             }),
           );
@@ -207,6 +217,10 @@ export class AndroidTvRemoteBridge {
       }
     });
 
+    socket.on("end", () => console.log("[pairing] phone ended connection"));
+    socket.on("close", (hadError) =>
+      console.log(`[pairing] connection closed (error=${hadError})`),
+    );
     socket.on("error", (error) =>
       console.error("[pairing] socket error:", error.message),
     );
