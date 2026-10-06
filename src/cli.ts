@@ -150,10 +150,24 @@ program
     }
 
     console.log(`Forwarding remote commands to ADB device: ${serial}`);
-    const bridge = new AndroidTvRemoteBridge(
-      new AdbInput(tools.adb, serial),
-      options.name,
+    const nativeRemoteAvailable = hasNativeAndroidTvRemoteService(
+      tools.adb,
+      serial,
     );
+
+    const bridge = nativeRemoteAvailable
+      ? new NativeAndroidTvRemoteProxy(tools.adb, serial, options.name)
+      : new AndroidTvRemoteBridge(
+          new AdbInput(tools.adb, serial),
+          options.name,
+        );
+
+    console.log(
+      nativeRemoteAvailable
+        ? "Native Google Android TV Remote Service detected; using transparent proxy mode."
+        : "Native Android TV Remote Service not found; using host compatibility server.",
+    );
+
     await bridge.start();
 
     const shutdown = async () => {
