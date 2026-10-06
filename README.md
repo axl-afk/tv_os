@@ -1,140 +1,149 @@
 # Ultimate TV OS
 
-Ultimate TV OS turns a desktop computer into a couch-first TV host. It launches an Android TV / Google TV virtual device and exposes the guest's native Google Android TV Remote Service to the local network so the normal Google TV phone app can control it.
+Ultimate TV OS turns a desktop computer into a couch-first TV host. The desktop app now owns its **own private TV runtime**: it downloads the Android virtualization engine, platform-tools/ADB, and a compatible Google TV development image directly from Google's SDK repositories, then creates and manages the virtual TV automatically.
 
-The same host application now targets **macOS, Windows, and Linux**.
+**Android Studio is no longer required for normal use.**
+
+The same desktop application targets **macOS, Windows, and Linux**.
 
 ## Current status
 
-- macOS Apple Silicon: remote-control path hardware verified.
+- macOS Apple Silicon: TV boot + native Google phone-remote path hardware verified.
 - Windows x86-64: desktop host + installer build supported; hardware validation pending.
 - Linux x86-64: desktop host + AppImage/DEB build supported; hardware validation pending.
-- Native Google Android TV Remote Service proxy is preferred automatically.
-- Compatibility remote server remains as a fallback for non-Google TV images.
+- First-run TV runtime installer: implemented.
+- Private AVD creation: implemented.
+- Google package-manifest monitoring: automated in GitHub Actions.
+- Remote tap/OK behavior: still under active investigation; runtime/app completion is being handled independently.
+
+## Install and run
+
+Download the installer for your platform from the latest **Desktop builds** GitHub Actions artifact.
+
+On first launch:
+
+1. Open **Ultimate TV OS**.
+2. Read and accept the Android SDK License.
+3. Click **Install TV Runtime**.
+4. Ultimate TV downloads the required components directly from Google.
+5. The app creates **Ultimate TV** automatically.
+6. Click **Start TV**.
+
+There is no Android Studio, SDK Manager, or manual Device Manager setup in this path.
+
+The private runtime is stored under:
+
+```text
+~/.ultimate-tv/runtime/
+├── sdk/
+│   ├── emulator/
+│   ├── platform-tools/
+│   └── system-images/
+└── avd/
+    └── Ultimate_TV_OS.avd/
+```
+
+## What the app installs
+
+The first-run installer retrieves:
+
+- current Android Platform Tools / ADB;
+- a compatible stable Android Emulator engine for the host OS/CPU;
+- the newest stable Google TV development system image matching the host architecture;
+- a private 4K-oriented Ultimate TV virtual-device configuration.
+
+Large archives are streamed to disk and verified against Google's published checksums when the repository supplies one. ZIP extraction rejects path traversal and unsafe symlink targets.
 
 ## Desktop application
 
 The desktop launcher provides:
 
-- Android SDK readiness checks.
-- TV AVD discovery.
-- TV-name configuration.
-- cold-boot option.
-- one-click **Start TV**.
-- automatic fullscreen TV mode.
-- Android boot/readiness detection.
-- selectable **Select-fix compatibility mode** for Android Emulator tap/OK issues.
-- native Google Remote Service mode remains available.
-- live session state.
+- one-click first-run TV runtime installation;
+- runtime download/install progress;
+- automatic Google package discovery;
+- private AVD creation;
+- runtime repair/reset;
+- TV AVD discovery;
+- one-click **Start TV**;
+- Android boot/readiness detection;
+- fullscreen request;
+- cold boot option;
+- native Google Remote Service mode;
+- experimental compatibility remote mode;
+- live session status;
 - one-click **Stop TV**.
 
-Run it from source:
+Run from source:
 
 ```bash
 npm install
 npm run desktop
 ```
 
-## Platform setup
+Node.js 22+ is only required when running from source; packaged desktop builds include Electron/Node.
+
+## Platform notes
 
 ### macOS
 
-Requirements:
+Supported development targets:
 
-- macOS with Android Studio.
-- Node.js 22+ when running from source.
-- Android Emulator + Platform Tools.
-- an Android TV / Google TV AVD.
+- Apple Silicon (arm64)
+- Intel (x64)
 
-```bash
-bash scripts/bootstrap-macos.sh
-npm run desktop
-```
+The runtime installer selects the matching Google emulator engine and Google TV ABI automatically.
 
-On Apple Silicon, prefer an ARM64-compatible TV image.
+macOS may request Accessibility permission when Ultimate TV attempts to move the external TV runtime window into macOS fullscreen.
 
 ### Windows
 
-Requirements:
+Current packaged target:
 
-- Windows 10/11.
-- Android Studio.
-- Android Emulator + Platform Tools.
-- hardware virtualization enabled.
-- a Google TV / Android TV AVD.
+- Windows 10/11 x86-64
 
-PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\bootstrap-windows.ps1
-npm run desktop
-```
-
-If Windows Defender Firewall asks whether Ultimate TV OS may accept incoming connections, allow it on **Private networks** so your phone can reach the remote service.
+Hardware virtualization should be enabled in firmware/Windows. If Windows Defender Firewall asks whether Ultimate TV OS may accept incoming connections, allow it on **Private networks** for phone-remote discovery.
 
 ### Linux
 
-Requirements:
+Current packaged target:
 
-- a desktop Linux distribution.
-- Android Studio / Android SDK.
-- Android Emulator + Platform Tools.
-- KVM acceleration recommended.
-- a Google TV / Android TV AVD.
+- Linux x86-64
 
-```bash
-bash scripts/bootstrap-linux.sh
-npm run desktop
-```
-
-If a host firewall is enabled, allow mDNS and the Android TV Remote v2 ports on the trusted LAN.
+KVM is strongly recommended for acceptable virtual-TV performance. A restrictive firewall should permit trusted-LAN mDNS and Android TV Remote traffic when phone-remote support is used.
 
 ## Phone remote
 
-When TV mode is running:
-
-1. Put the computer and phone on the same LAN/Wi-Fi.
-2. Open Google TV on the phone.
-3. Open **Remote**.
-4. Select **Ultimate TV OS** (or your configured TV name).
-5. Complete Google's normal pairing flow.
-
-The verified architecture is:
+Remote work is separate from the standalone runtime installer. The verified native path is:
 
 ```text
 Google TV app on phone
         |
         | local network
-        | mDNS + TCP 6466/6467
         v
 Ultimate TV OS host
         |
         | transparent TCP proxy
         v
-ADB port forwarding
-        |
-        v
 Google Android TV Remote Service
 inside the TV guest
 ```
 
+Pairing/discovery works on the macOS reference setup. Tap/OK handling still needs additional work and is intentionally not blocking completion of the standalone app/runtime.
+
 ## CLI
 
-The CLI remains available for debugging and automation:
+The CLI remains available for development/debugging:
 
 ```bash
 npm run build
-
+npm run runtime:probe
 npm run tv -- doctor
 npm run tv -- avds
-npm run tv -- session --avd YOUR_TV_AVD --remote-mode compatibility
-npm run tv -- remote
+npm run tv -- session --avd Ultimate_TV_OS --remote-mode native
 npm run tv -- stop --serial emulator-5554
 ```
 
 ## Build installers
-
-Local packaging:
 
 ```bash
 # macOS
@@ -147,15 +156,15 @@ npm run dist:win
 npm run dist:linux
 ```
 
-GitHub Actions also has a **Desktop builds** workflow that packages artifacts on native macOS, Windows, and Linux runners.
+GitHub Actions packages all three platforms on native runners.
 
 ## Important licensing boundary
 
-This repository does **not** redistribute Google's proprietary Google TV launcher, Google Play Services, Play Store, Widevine production credentials, Netflix binaries, or certification material.
+Ultimate TV OS does **not** put Google's proprietary runtime binaries or Google TV image inside this Git repository or installer.
 
-For development, use Android Studio's official TV system images available through the Android SDK tooling.
+The user explicitly accepts Google's Android SDK License, and the first-run installer downloads the selected SDK/runtime components directly from Google's distribution servers.
 
-A commercial product with licensed Google TV/GMS, production Widevine, Netflix, Prime Video, Disney+, Dolby and similar protected integrations requires the respective vendor approval/certification.
+This does not grant commercial Google TV/GMS, Widevine, Netflix, Prime Video, Disney+, Dolby, or similar certification. Those remain separate vendor approval/licensing workstreams.
 
 See:
 
@@ -165,17 +174,18 @@ See:
 - [Cross-platform notes](docs/CROSS_PLATFORM.md)
 - [macOS hardware test](docs/MACOS_TEST.md)
 
+## Runtime backend vs final virtualization layer
 
-## Emulator backend vs final product
+The current standalone app still uses Google's Android Emulator **engine internally**. The important change is that the user no longer installs or manages Android Studio: Ultimate TV owns the runtime, system image, AVD, launch lifecycle, and updates.
 
-The current development runtime intentionally launches an Android TV / Google TV AVD through Google's Android Emulator. That gives the project a hardware-accelerated, reproducible TV guest and access to Google's official development TV images while the product architecture is still being proven.
+ADB alone cannot replace a virtualization engine; it only communicates with a running Android guest.
 
-The consumer product should not expose emulator tooling. Ultimate TV now requests fullscreen automatically, and a later milestone replaces the development emulator backend with the platform-specific virtual-hardware layer described in the architecture roadmap.
+A later architecture milestone can replace Google's emulator engine with native host backends:
 
-## Phone tap / OK on Android Emulator
+```text
+macOS   → Apple Hypervisor / Virtualization framework
+Windows → WHPX / Hyper-V
+Linux   → KVM
+```
 
-Some Android TV emulator configurations do not reliably dispatch `KEYCODE_DPAD_CENTER` from remote input. Ultimate TV therefore provides **Select-fix mode**. In this mode, the host receives the Android TV Remote v2 event and maps center/select to Android `KEYCODE_ENTER`, while directional swipes remain normal D-pad events.
-
-The desktop app selects **Select-fix mode** by default for development/emulator use. Native Google Remote Service mode is still available when you want the unmodified Google path.
-
-If using Google's native swipe remote directly, switching the Google TV phone remote to its D-pad layout can also avoid swipe-control bugs in some current Google TV app versions.
+That replacement is independent of the first-run standalone app work now implemented.
