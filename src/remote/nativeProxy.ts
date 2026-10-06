@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import net from "node:net";
 import { Bonjour } from "bonjour-service";
 import { run } from "../lib/process.js";
@@ -8,6 +9,60 @@ const REMOTE_SERVICE_PACKAGE = "com.google.android.tv.remote.service";
 
 function adbArgs(serial: string, ...args: string[]) {
   return ["-s", serial, ...args];
+}
+
+function readGuestValue(
+  adbPath: string,
+  serial: string,
+  args: string[],
+): string | null {
+  const result = run(adbPath, adbArgs(serial, ...args));
+  if (!result.ok) return null;
+  const value = result.stdout.trim();
+  if (!value || value === "null" || value === "unknown") return null;
+  return value;
+}
+
+export function remoteAdvertisementIdentity(
+  androidId: string | null,
+): string {
+  const seed = androidId || "ultimate-tv";
+  const digest = crypto.createHash("sha256").update(seed).digest();
+  const bytes = Buffer.from(digest.subarray(0, 6));
+
+  // Locally administered, unicast MAC-style identifier.
+  bytes[0] = (bytes[0] | 0x02) & 0xfe;
+
+  return [...bytes]
+    .map((value) => value.toString(16).padStart(2, "0").toUpperCase())
+    .join(":");
+}
+
+function guestAdvertisementInfo(
+  adbPath: string,
+  serial: string,
+  deviceName: string,
+) {
+  const androidId = readGuestValue(adbPath, serial, [
+    "shell",
+    "settings",
+    "get",
+    "secure",
+    "android_id",
+  ]);
+
+  const model =
+    readGuestValue(adbPath, serial, [
+      "shell",
+      "getprop",
+      "ro.product.model",
+    ]) ?? "Google TV";
+
+  return {
+    bt: remoteAdvertisementIdentity(androidId),
+    fn: deviceName,
+    md: model.toLowerCase().includes("tv") ? model : "Google TV",
+  };
 }
 
 function createAdbForward(adbPath: string, serial: string, guestPort: number): number {
@@ -113,26 +168,27 @@ export class NativeAndroidTvRemoteProxy {
       throw error;
     }
 
+    const identity = guestAdvertisementInfo(
+      this.adbPath,
+      this.serial,
+      this.deviceName,
+    );
+
     this.bonjour = new Bonjour();
     this.bonjour.publish({
       name: this.deviceName,
       type: "androidtvremote2",
       protocol: "tcp",
       port: PUBLIC_REMOTE_PORT,
-      txt: {
-        // Real Android TV Remote Service advertisements generally expose a
-        // Bluetooth-style identity in the "bt" TXT field. This is a synthetic
-        // locally-administered identity for the virtual appliance.
-        bt: "02:55:4C:54:56:01",
-      },
+      txt: identity,
     });
 
     console.log("[native-remote] Using Android TV's built-in Google Remote Service.");
     console.log(
-      `[native-remote] LAN :${PUBLIC_PAIRING_PORT}/:${PUBLIC_REMOTE_PORT} -> emulator ${this.serial}`,
+      `[native-remote] Advertising "${this.deviceName}" as ${identity.md} (${identity.bt}).`,
     );
     console.log(
-      `[native-remote] Open the Google TV phone remote and select "${this.deviceName}".`,
+      `[native-remote] LAN :${PUBLIC_PAIRING_PORT}/:${PUBLIC_REMOTE_PORT} -> emulator ${this.serial}`,
     );
   }
 
