@@ -1,0 +1,92 @@
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  cursor: none;
+  user-select: none;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+}
+#frame {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+#frame:not([src]) { visibility: hidden; }
+#boot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 20px;
+  background: radial-gradient(circle at center, #111827 0, #06080d 48%, #000 100%);
+  color: #eef3ff;
+}
+#boot.hidden { display: none; }
+.logo {
+  font-weight: 900;
+  letter-spacing: .2em;
+  font-size: clamp(24px, 3vw, 46px);
+}
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255,255,255,.15);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .9s linear infinite;
+}
+#boot p { margin: 0; color: #91a0bd; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.controls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  left: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 14px 12px 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10,14,24,.78);
+  backdrop-filter: blur(22px);
+  border-radius: 18px;
+  color: white;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.controls.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.controls strong { display: block; font-size: 14px; }
+.controls span { display: block; margin-top: 3px; color: #91a0bd; font-size: 12px; }
+.controls button {
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.09);
+  color: white;
+  border-radius: 12px;
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+body.controls-visible { cursor: default; }
