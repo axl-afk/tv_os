@@ -11,6 +11,8 @@ let frameUrl = null;
 let sourceWidth = 1920;
 let sourceHeight = 1080;
 let hideTimer = null;
+let decodingFrame = false;
+let pendingFrame = null;
 
 function showControls() {
   document.body.classList.add("controls-visible");
@@ -31,10 +33,14 @@ function bytesFrom(value) {
   return new Uint8Array(value || []);
 }
 
-api.onFrame((frame) => {
+function renderFrame(frame) {
   const bytes = bytesFrom(frame.png);
-  if (!bytes.length) return;
+  if (!bytes.length) {
+    decodingFrame = false;
+    return;
+  }
 
+  decodingFrame = true;
   sourceWidth = Number(frame.width) || sourceWidth;
   sourceHeight = Number(frame.height) || sourceHeight;
 
@@ -45,9 +51,29 @@ api.onFrame((frame) => {
     if (frameUrl) URL.revokeObjectURL(frameUrl);
     frameUrl = nextUrl;
     boot.classList.add("hidden");
+    decodingFrame = false;
+
+    if (pendingFrame) {
+      const next = pendingFrame;
+      pendingFrame = null;
+      renderFrame(next);
+    }
+  };
+
+  frameEl.onerror = () => {
+    URL.revokeObjectURL(nextUrl);
+    decodingFrame = false;
   };
 
   frameEl.src = nextUrl;
+}
+
+api.onFrame((frame) => {
+  if (decodingFrame) {
+    pendingFrame = frame;
+    return;
+  }
+  renderFrame(frame);
 });
 
 api.onStatus((status) => {
