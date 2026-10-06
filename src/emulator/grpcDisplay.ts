@@ -4,7 +4,8 @@ import * as grpc from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
 
 export type TvFrame = {
-  png: Buffer;
+  pixels: Buffer;
+  format: "rgb888";
   width: number;
   height: number;
   sequence: number;
@@ -74,9 +75,9 @@ export class EmulatorDisplayStream extends EventEmitter {
       });
     });
 
-    const width = this.options.width ?? 1920;
-    const height = this.options.height ?? 1080;
-    const maxFps = Math.max(1, this.options.maxFps ?? 30);
+    const width = this.options.width ?? 1280;
+    const height = this.options.height ?? 720;
+    const maxFps = Math.max(1, this.options.maxFps ?? 60);
     const minimumGapMs = 1000 / maxFps;
 
     const metadata = new grpc.Metadata();
@@ -89,7 +90,8 @@ export class EmulatorDisplayStream extends EventEmitter {
 
     const call = client.streamScreenshot(
       {
-        format: 0,
+        // RGB888 avoids the expensive per-frame PNG encode/decode path.
+        format: 2,
         width,
         height,
         display: 0,
@@ -101,21 +103,25 @@ export class EmulatorDisplayStream extends EventEmitter {
     call.on("data", (image: any) => {
       if (this.stopped) return;
 
-      const now = Date.now();
+      const now = performance.now();
       if (now - this.lastFrameAt < minimumGapMs) return;
 
       const bytes = image?.image;
       if (!bytes || bytes.length === 0) return;
-
-      this.lastFrameAt = now;
 
       const frameWidth =
         Number(image?.format?.width ?? image?.width ?? width) || width;
       const frameHeight =
         Number(image?.format?.height ?? image?.height ?? height) || height;
 
+      const expectedBytes = frameWidth * frameHeight * 3;
+      if (bytes.length < expectedBytes) return;
+
+      this.lastFrameAt = now;
+
       const frame: TvFrame = {
-        png: Buffer.from(bytes),
+        pixels: Buffer.from(bytes),
+        format: "rgb888",
         width: frameWidth,
         height: frameHeight,
         sequence: Number(image?.seq ?? 0),
