@@ -75,8 +75,8 @@
         <label>
           <span>Display mode</span>
           <select id="displayModeSelect">
-            <option value="native" selected>Native Performance — native 4K / 60 Hz</option>
-            <option value="embedded">Embedded — integrated 720p / 60 FPS stream</option>
+            <option value="embedded" selected>Mac Window — native display resolution / 60 FPS</option>
+            <option value="native">Direct Emulator — best performance</option>
           </select>
         </label>
         <label>
@@ -91,7 +91,7 @@
       </div>
 
       <p class="embedded-note">
-        Native Performance renders the 4K TV directly through the emulator for the smoothest video. Embedded mode keeps the TV inside Ultimate TV but is bandwidth-limited.
+        Mac Window uses the selected monitor's native backing-pixel resolution and standard macOS traffic-light controls. Direct Emulator bypasses the embedded stream when maximum performance matters.
       </p>
       <label class="check-row">
         <input type="checkbox" id="coldBoot" />
