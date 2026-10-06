@@ -2,19 +2,59 @@ import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
 import { run } from "../lib/process.js";
+import {
+  privateRuntimeReady,
+  runtimeAvdHome,
+  runtimeEnvironment,
+  runtimeSdkRoot,
+} from "../runtime/paths.js";
 
 export type AndroidTools = {
   sdkRoot: string | null;
   adb: string | null;
   emulator: string | null;
   avdManager: string | null;
+  source: "ultimate-tv" | "system" | null;
+  environment?: NodeJS.ProcessEnv;
+  avdHome?: string;
 };
 
 function firstExisting(candidates: string[]) {
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
+function toolsForRoot(
+  sdkRoot: string,
+  source: "ultimate-tv" | "system",
+  environment?: NodeJS.ProcessEnv,
+  avdHome?: string,
+): AndroidTools {
+  const exe = process.platform === "win32" ? ".exe" : "";
+  const bat = process.platform === "win32" ? ".bat" : "";
+
+  return {
+    sdkRoot,
+    adb: firstExisting([path.join(sdkRoot, "platform-tools", `adb${exe}`)]),
+    emulator: firstExisting([path.join(sdkRoot, "emulator", `emulator${exe}`)]),
+    avdManager: firstExisting([
+      path.join(sdkRoot, "cmdline-tools", "latest", "bin", `avdmanager${bat}`),
+    ]),
+    source,
+    environment,
+    avdHome,
+  };
+}
+
 export function detectAndroidTools(): AndroidTools {
+  if (privateRuntimeReady()) {
+    return toolsForRoot(
+      runtimeSdkRoot(),
+      "ultimate-tv",
+      runtimeEnvironment(),
+      runtimeAvdHome(),
+    );
+  }
+
   const home = os.homedir();
   const roots = [
     process.env.ANDROID_SDK_ROOT,
@@ -34,28 +74,23 @@ export function detectAndroidTools(): AndroidTools {
 
   const sdkRoot = roots.find((root) => fs.existsSync(root)) ?? null;
   if (!sdkRoot) {
-    return { sdkRoot: null, adb: null, emulator: null, avdManager: null };
+    return {
+      sdkRoot: null,
+      adb: null,
+      emulator: null,
+      avdManager: null,
+      source: null,
+    };
   }
 
-  const exe = process.platform === "win32" ? ".exe" : "";
-  const bat = process.platform === "win32" ? ".bat" : "";
-
-  return {
-    sdkRoot,
-    adb: firstExisting([
-      path.join(sdkRoot, "platform-tools", `adb${exe}`),
-    ]),
-    emulator: firstExisting([
-      path.join(sdkRoot, "emulator", `emulator${exe}`),
-    ]),
-    avdManager: firstExisting([
-      path.join(sdkRoot, "cmdline-tools", "latest", "bin", `avdmanager${bat}`),
-    ]),
-  };
+  return toolsForRoot(sdkRoot, "system");
 }
 
-export function listAvds(emulatorPath: string): string[] {
-  const result = run(emulatorPath, ["-list-avds"]);
+export function listAvds(
+  emulatorPath: string,
+  environment?: NodeJS.ProcessEnv,
+): string[] {
+  const result = run(emulatorPath, ["-list-avds"], { env: environment });
   if (!result.ok) {
     throw new Error(result.stderr.trim() || "Unable to list Android virtual devices.");
   }
@@ -65,8 +100,11 @@ export function listAvds(emulatorPath: string): string[] {
     .filter(Boolean);
 }
 
-export function listAdbDevices(adbPath: string): string[] {
-  const result = run(adbPath, ["devices"]);
+export function listAdbDevices(
+  adbPath: string,
+  environment?: NodeJS.ProcessEnv,
+): string[] {
+  const result = run(adbPath, ["devices"], { env: environment });
   if (!result.ok) return [];
   return result.stdout
     .split(/\r?\n/)
