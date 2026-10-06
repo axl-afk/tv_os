@@ -7,22 +7,113 @@ const controls = document.getElementById("controls");
 const exitBtn = document.getElementById("exitBtn");
 const surfaceStatus = document.getElementById("surfaceStatus");
 
-let frameUrl = null;
-let sourceWidth = 1920;
-let sourceHeight = 1080;
+let sourceWidth = 1280;
+let sourceHeight = 720;
 let hideTimer = null;
-let decodingFrame = false;
-let pendingFrame = null;
+let latestFrame = null;
+let rafScheduled = false;
+let textureWidth = 0;
+let textureHeight = 0;
 
-function showControls() {
-  document.body.classList.add("controls-visible");
-  controls.classList.add("visible");
-  clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => {
-    controls.classList.remove("visible");
-    document.body.classList.remove("controls-visible");
-  }, 2200);
+const gl = frameEl.getContext("webgl", {
+  alpha: false,
+  antialias: false,
+  depth: false,
+  stencil: false,
+  preserveDrawingBuffer: false,
+  powerPreference: "high-performance",
+});
+
+if (!gl) {
+  bootText.textContent = "WebGL is unavailable on this display.";
+  throw new Error("WebGL is unavailable.");
 }
+
+function shader(type, source) {
+  const value = gl.createShader(type);
+  gl.shaderSource(value, source);
+  gl.compileShader(value);
+  if (!gl.getShaderParameter(value, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(value) || "Shader compilation failed.");
+  }
+  return value;
+}
+
+const program = gl.createProgram();
+gl.attachShader(
+  program,
+  shader(
+    gl.VERTEX_SHADER,
+    `
+      attribute vec2 aPosition;
+      attribute vec2 aTexCoord;
+      varying vec2 vTexCoord;
+      void main() {
+        gl_Position = vec4(aPosition, 0.0, 1.0);
+        vTexCoord = aTexCoord;
+      }
+    `,
+  ),
+);
+gl.attachShader(
+  program,
+  shader(
+    gl.FRAGMENT_SHADER,
+    `
+      precision mediump float;
+      varying vec2 vTexCoord;
+      uniform sampler2D uTexture;
+      void main() {
+        gl_FragColor = texture2D(uTexture, vTexCoord);
+      }
+    `,
+  ),
+);
+gl.linkProgram(program);
+if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+  throw new Error(gl.getProgramInfoLog(program) || "WebGL program link failed.");
+}
+gl.useProgram(program);
+
+const vertexBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+gl.bufferData(
+  gl.ARRAY_BUFFER,
+  new Float32Array([
+    -1, -1, 0, 1,
+     1, -1, 1, 1,
+    -1,  1, 0, 0,
+    -1,  1, 0, 0,
+     1, -1, 1, 1,
+     1,  1, 1, 0,
+  ]),
+  gl.STATIC_DRAW,
+);
+
+const stride = 4 * Float32Array.BYTES_PER_ELEMENT;
+const position = gl.getAttribLocation(program, "aPosition");
+const texCoord = gl.getAttribLocation(program, "aTexCoord");
+
+gl.enableVertexAttribArray(position);
+gl.vertexAttribPointer(position, 2, gl.FLOAT, false, stride, 0);
+gl.enableVertexAttribArray(texCoord);
+gl.vertexAttribPointer(
+  texCoord,
+  2,
+  gl.FLOAT,
+  false,
+  stride,
+  2 * Float32Array.BYTES_PER_ELEMENT,
+);
+
+const texture = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, texture);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+gl.clearColor(0, 0, 0, 1);
 
 function bytesFrom(value) {
   if (value instanceof Uint8Array) return value;
@@ -33,47 +124,110 @@ function bytesFrom(value) {
   return new Uint8Array(value || []);
 }
 
-function renderFrame(frame) {
-  const bytes = bytesFrom(frame.png);
-  if (!bytes.length) {
-    decodingFrame = false;
+function resizeCanvas() {
+  const scale = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.round(frameEl.clientWidth * scale));
+  const height = Math.max(1, Math.round(frameEl.clientHeight * scale));
+  if (frameEl.width !== width || frameEl.height !== height) {
+    frameEl.width = width;
+    frameEl.height = height;
+  }
+}
+
+function setLetterboxedViewport() {
+  resizeCanvas();
+
+  const targetWidth = frameEl.width;
+  const targetHeight = frameEl.height;
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = targetWidth / targetHeight;
+
+  let width;
+  let height;
+  let x = 0;
+  let y = 0;
+
+  if (targetRatio > sourceRatio) {
+    height = targetHeight;
+    width = Math.round(height * sourceRatio);
+    x = Math.floor((targetWidth - width) / 2);
+  } else {
+    width = targetWidth;
+    height = Math.round(width / sourceRatio);
+    y = Math.floor((targetHeight - height) / 2);
+  }
+
+  gl.viewport(x, y, width, height);
+}
+
+function drawFrame(frame) {
+  const pixels = bytesFrom(frame.pixels);
+  const width = Number(frame.width) || sourceWidth;
+  const height = Number(frame.height) || sourceHeight;
+  const expected = width * height * 3;
+
+  if (pixels.length < expected) {
+    api.frameConsumed();
     return;
   }
 
-  decodingFrame = true;
-  sourceWidth = Number(frame.width) || sourceWidth;
-  sourceHeight = Number(frame.height) || sourceHeight;
+  sourceWidth = width;
+  sourceHeight = height;
 
-  const blob = new Blob([bytes], { type: "image/png" });
-  const nextUrl = URL.createObjectURL(blob);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
 
-  frameEl.onload = () => {
-    if (frameUrl) URL.revokeObjectURL(frameUrl);
-    frameUrl = nextUrl;
-    boot.classList.add("hidden");
-    decodingFrame = false;
+  if (textureWidth !== width || textureHeight !== height) {
+    textureWidth = width;
+    textureHeight = height;
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGB,
+      width,
+      height,
+      0,
+      gl.RGB,
+      gl.UNSIGNED_BYTE,
+      pixels,
+    );
+  } else {
+    gl.texSubImage2D(
+      gl.TEXTURE_2D,
+      0,
+      0,
+      0,
+      width,
+      height,
+      gl.RGB,
+      gl.UNSIGNED_BYTE,
+      pixels,
+    );
+  }
 
-    if (pendingFrame) {
-      const next = pendingFrame;
-      pendingFrame = null;
-      renderFrame(next);
-    }
-  };
+  gl.viewport(0, 0, frameEl.width, frameEl.height);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  setLetterboxedViewport();
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-  frameEl.onerror = () => {
-    URL.revokeObjectURL(nextUrl);
-    decodingFrame = false;
-  };
+  boot.classList.add("hidden");
+  api.frameConsumed();
+}
 
-  frameEl.src = nextUrl;
+function scheduleFrame() {
+  if (rafScheduled) return;
+  rafScheduled = true;
+
+  requestAnimationFrame(() => {
+    rafScheduled = false;
+    const frame = latestFrame;
+    latestFrame = null;
+    if (frame) drawFrame(frame);
+  });
 }
 
 api.onFrame((frame) => {
-  if (decodingFrame) {
-    pendingFrame = frame;
-    return;
-  }
-  renderFrame(frame);
+  latestFrame = frame;
+  scheduleFrame();
 });
 
 api.onStatus((status) => {
@@ -83,6 +237,23 @@ api.onStatus((status) => {
     bootText.textContent = status.error;
   }
 });
+
+window.addEventListener("resize", () => {
+  resizeCanvas();
+  gl.viewport(0, 0, frameEl.width, frameEl.height);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  setLetterboxedViewport();
+});
+
+function showControls() {
+  document.body.classList.add("controls-visible");
+  controls.classList.add("visible");
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    controls.classList.remove("visible");
+    document.body.classList.remove("controls-visible");
+  }, 2200);
+}
 
 window.addEventListener("mousemove", showControls);
 window.addEventListener("mousedown", showControls);
@@ -157,4 +328,6 @@ frameEl.addEventListener("click", (event) => {
 
 exitBtn.addEventListener("click", () => api.exit());
 
+resizeCanvas();
+gl.clear(gl.COLOR_BUFFER_BIT);
 showControls();
