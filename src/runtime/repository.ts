@@ -111,6 +111,31 @@ export function platformToolsArtifact(): RuntimeArtifact {
   return { url: GOOGLE_REPOSITORY + "platform-tools-latest-" + platform + ".zip" };
 }
 
+
+export async function discoverLatestPlatformTools(): Promise<RuntimeArtifact> {
+  const manifest = await fetchManifest([
+    GOOGLE_REPOSITORY + "repository2-3.xml",
+    GOOGLE_REPOSITORY + "repository2-2.xml",
+    GOOGLE_REPOSITORY + "repository2-1.xml",
+  ]);
+
+  const packages = collectRemotePackages(manifest.xml)
+    .filter((pkg) => pkg?.["@_path"] === "platform-tools")
+    .filter(stablePackage)
+    .sort((a, b) => revisionScore(b.revision) - revisionScore(a.revision));
+
+  for (const pkg of packages) {
+    const archive = selectHostArchive(pkg);
+    if (!archive) continue;
+    const artifact = archiveToArtifact(archive, GOOGLE_REPOSITORY, {
+      packagePath: "platform-tools",
+    });
+    if (artifact) return artifact;
+  }
+
+  return platformToolsArtifact();
+}
+
 export async function discoverLatestEmulator(): Promise<RuntimeArtifact> {
   const manifest = await fetchManifest([
     GOOGLE_REPOSITORY + "repository2-3.xml",
