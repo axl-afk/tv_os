@@ -71,7 +71,13 @@
         "deb"
       ],
       "category": "AudioVideo",
-      "artifactName": "Ultimate-TV-OS-${version}-${arch}.${ext}"
+      "artifactName": "Ultimate-TV-OS-${version}-${arch}.${ext}",
+      "syncDesktopName": true
     }
-  }
+  },
+  "author": {
+    "name": "Ultimate TV OS",
+    "email": "opensource@ultimatetv.dev"
+  },
+  "desktopName": "ultimate-tv-os"
 }
