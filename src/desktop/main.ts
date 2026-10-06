@@ -1,20 +1,56 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  shell,
+  type Display,
+} from "electron";
 import path from "node:path";
-import { UltimateTvSession } from "../core/session.js";
+import { UltimateTvSession, type SessionSnapshot } from "../core/session.js";
 import { detectAndroidTools, listAvds } from "../android/sdk.js";
+import { AdbInput } from "../android/adbInput.js";
 import { runDoctorSnapshot } from "../doctor.js";
 import { RuntimeInstaller } from "../runtime/installer.js";
+import {
+  EmulatorDisplayStream,
+  type TvFrame,
+} from "../emulator/grpcDisplay.js";
 
 const session = new UltimateTvSession();
 const runtime = new RuntimeInstaller();
-let mainWindow: BrowserWindow | null = null;
 
-function rendererPath() {
-  return path.join(app.getAppPath(), "desktop", "renderer.html");
+let mainWindow: BrowserWindow | null = null;
+let tvWindow: BrowserWindow | null = null;
+let displayStream: EmulatorDisplayStream | null = null;
+let tvInput: AdbInput | null = null;
+let closingTvSurface = false;
+
+function rendererPath(file = "renderer.html") {
+  return path.join(app.getAppPath(), "desktop", file);
 }
 
-function send(channel: string, payload: unknown) {
-  mainWindow?.webContents.send(channel, payload);
+function sendMain(channel: string, payload: unknown) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
+function sendTv(channel: string, payload: unknown) {
+  if (tvWindow && !tvWindow.isDestroyed()) {
+    tvWindow.webContents.send(channel, payload);
+  }
+}
+
+function displaySummary(display: Display, primaryId: number) {
+  return {
+    id: String(display.id),
+    label: display.label || `Display ${display.id}`,
+    primary: display.id === primaryId,
+    width: display.bounds.width,
+    height: display.bounds.height,
+    scaleFactor: display.scaleFactor,
+  };
 }
 
 function createWindow() {
@@ -26,7 +62,7 @@ function createWindow() {
     backgroundColor: "#090d16",
     title: "Ultimate TV OS",
     webPreferences: {
-      preload: path.join(app.getAppPath(), "desktop", "preload.cjs"),
+      preload: rendererPath("preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -36,13 +72,144 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false);
   void mainWindow.loadFile(rendererPath());
 
-  session.on("status", (status) => send("session:status", status));
-  runtime.on("status", (status) => send("runtime:status", status));
+  session.on("status", (status) => {
+    sendMain("session:status", status);
+    sendTv("tv:status", { message: status.message });
+  });
+
+  runtime.on("status", (status) => sendMain("runtime:status", status));
+}
+
+async function stopDisplayStream() {
+  displayStream?.stop();
+  displayStream = null;
+  tvInput = null;
+}
+
+async function closeTvSurface() {
+  await stopDisplayStream();
+
+  if (tvWindow && !tvWindow.isDestroyed()) {
+    closingTvSurface = true;
+    tvWindow.destroy();
+    closingTvSurface = false;
+  }
+
+  tvWindow = null;
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+async function stopTvCompletely() {
+  await closeTvSurface();
+  return session.stop();
+}
+
+async function createTvSurface(
+  snapshot: SessionSnapshot,
+  requestedDisplayId?: string,
+) {
+  if (!snapshot.grpcPort || !snapshot.serial) {
+    throw new Error(
+      "Embedded TV session did not provide a display endpoint.",
+    );
+  }
+
+  await closeTvSurface();
+
+  const displays = screen.getAllDisplays();
+  const primary = screen.getPrimaryDisplay();
+  const target =
+    displays.find((display) => String(display.id) === requestedDisplayId) ??
+    primary;
+
+  tvWindow = new BrowserWindow({
+    x: target.bounds.x,
+    y: target.bounds.y,
+    width: target.bounds.width,
+    height: target.bounds.height,
+    frame: false,
+    fullscreen: true,
+    backgroundColor: "#000000",
+    show: false,
+    autoHideMenuBar: true,
+    title: "Ultimate TV",
+    webPreferences: {
+      preload: rendererPath("tv-preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      backgroundThrottling: false,
+    },
+  });
+
+  tvWindow.setMenuBarVisibility(false);
+
+  tvWindow.on("closed", () => {
+    tvWindow = null;
+    void stopDisplayStream();
+
+    if (!closingTvSurface) {
+      void session.stop();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
+
+  await tvWindow.loadFile(rendererPath("tv.html"));
+
+  const tools = detectAndroidTools();
+  if (!tools.adb) {
+    throw new Error("Ultimate TV ADB runtime disappeared after boot.");
+  }
+
+  tvInput = new AdbInput(tools.adb, snapshot.serial);
+
+  displayStream = new EmulatorDisplayStream({
+    port: snapshot.grpcPort,
+    appPath: app.getAppPath(),
+    width: 1920,
+    height: 1080,
+    maxFps: 30,
+  });
+
+  displayStream.on("frame", (frame: TvFrame) => {
+    sendTv("tv:frame", {
+      png: frame.png,
+      width: frame.width,
+      height: frame.height,
+      sequence: frame.sequence,
+      timestampUs: frame.timestampUs,
+    });
+  });
+
+  displayStream.on("error", (error) => {
+    sendTv("tv:status", {
+      error: "TV display stream error: " + String(error),
+    });
+  });
+
+  await displayStream.start();
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.hide();
+  }
+
+  tvWindow.show();
+  tvWindow.focus();
+  tvWindow.setFullScreen(true);
 }
 
 app.whenReady().then(() => {
   ipcMain.handle("system:info", () => {
     const tools = detectAndroidTools();
+    const primaryId = screen.getPrimaryDisplay().id;
+
     return {
       platform: process.platform,
       arch: process.arch,
@@ -54,6 +221,9 @@ app.whenReady().then(() => {
       avds: tools.emulator
         ? listAvds(tools.emulator, tools.environment)
         : [],
+      displays: screen
+        .getAllDisplays()
+        .map((display) => displaySummary(display, primaryId)),
       doctor: runDoctorSnapshot(),
       runtime: runtime.status(),
     };
@@ -69,6 +239,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("session:status", () => session.status());
   ipcMain.handle("session:avds", () => session.availableAvds());
+
   ipcMain.handle(
     "session:start",
     async (
@@ -77,12 +248,58 @@ app.whenReady().then(() => {
         avd: string;
         deviceName?: string;
         coldBoot?: boolean;
-        fullscreen?: boolean;
-        remoteMode?: "auto" | "native" | "compatibility";
+        displayId?: string;
+        remoteMode?: "off" | "auto" | "native" | "compatibility";
       },
-    ) => session.start(options),
+    ) => {
+      try {
+        const snapshot = await session.start({
+          avd: options.avd,
+          deviceName: options.deviceName,
+          coldBoot: options.coldBoot,
+          embedded: true,
+          fullscreen: true,
+          remoteMode: options.remoteMode,
+        });
+
+        await createTvSurface(snapshot, options.displayId);
+        return snapshot;
+      } catch (error) {
+        await stopTvCompletely();
+        throw error;
+      }
+    },
   );
-  ipcMain.handle("session:stop", async () => session.stop());
+
+  ipcMain.handle("session:stop", async () => stopTvCompletely());
+
+  ipcMain.on("tv:key", (_event, keyCode: number) => {
+    if (!tvInput || !Number.isFinite(keyCode)) return;
+    try {
+      tvInput.key(Number(keyCode));
+    } catch (error) {
+      sendTv("tv:status", { error: String(error) });
+    }
+  });
+
+  ipcMain.on(
+    "tv:tap",
+    (_event, point: { x?: number; y?: number }) => {
+      if (!tvInput) return;
+
+      const x = Math.min(1, Math.max(0, Number(point?.x ?? 0)));
+      const y = Math.min(1, Math.max(0, Number(point?.y ?? 0)));
+
+      try {
+        // The managed AVD is configured as 3840x2160.
+        tvInput.tap(x * 3840, y * 2160);
+      } catch (error) {
+        sendTv("tv:status", { error: String(error) });
+      }
+    },
+  );
+
+  ipcMain.handle("tv:exit", async () => stopTvCompletely());
 
   ipcMain.handle("system:open-docs", async () => {
     await shell.openExternal("https://github.com/axl-afk/tv_os");
@@ -100,6 +317,7 @@ app.whenReady().then(() => {
 });
 
 app.on("before-quit", () => {
+  displayStream?.stop();
   void session.stop();
 });
 
