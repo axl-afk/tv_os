@@ -57,7 +57,7 @@ export function applyRuntimeGoogleTvProfile(): void {
     "hw.lcd.width": "3840",
     "hw.lcd.height": "2160",
     "hw.lcd.density": "640",
-    "hw.lcd.vsync": "120",
+    "hw.lcd.vsync": "60",
     "hw.sensors.orientation": "no",
     "hw.sensors.proximity": "no",
     "showDeviceFrame": "no",
