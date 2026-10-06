@@ -28,8 +28,10 @@ export function buildEmulatorArgs(
   if (options.headless) args.push("-no-window");
   if (options.noAudio) args.push("-no-audio");
   if (options.grpcPort) {
-    // The display-control endpoint is private to Ultimate TV OS.
-    args.push("-grpc", `localhost:${options.grpcPort}`);
+    // Android Studio uses token-authenticated emulator gRPC. In this mode the
+    // emulator advertises grpc.port/grpc.token through its discovery file and
+    // restricts the unauthenticated control surface to the local host.
+    args.push("-grpc", String(options.grpcPort), "-grpc-use-token");
   }
 
   return args;
