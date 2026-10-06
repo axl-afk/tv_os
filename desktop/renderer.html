@@ -12,10 +12,43 @@
       <div>
         <p class="eyebrow">SOFTWARE-DEFINED TELEVISION</p>
         <h1>Ultimate TV OS</h1>
-        <p class="subtitle">Turn this computer into a couch-first Google TV host.</p>
+        <p class="subtitle">Install once. Turn this computer into a TV without Android Studio.</p>
       </div>
       <div class="status-pill" id="statusPill"><span></span><b id="statusText">Checking…</b></div>
     </header>
+
+    <section class="card runtime-card" id="runtimeCard">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">FIRST-RUN SETUP</p>
+          <h2>TV Runtime</h2>
+        </div>
+        <div class="runtime-badge" id="runtimeBadge">Checking</div>
+      </div>
+
+      <p class="runtime-copy">
+        Ultimate TV installs its own private Android TV runtime, ADB tools, virtualization engine,
+        and Google TV development image. Android Studio is not required.
+      </p>
+
+      <div class="progress-track" id="runtimeProgressTrack">
+        <div class="progress-fill" id="runtimeProgressFill"></div>
+      </div>
+      <p class="session-message" id="runtimeMessage">Checking runtime…</p>
+
+      <label class="license-row" id="licenseRow">
+        <input type="checkbox" id="licenseAccept" />
+        <span>
+          I accept the Android SDK License required to download Google's runtime components.
+          <button class="link-button" id="licenseBtn" type="button">Read license</button>
+        </span>
+      </label>
+
+      <div class="actions">
+        <button class="primary" id="installRuntimeBtn">Install TV Runtime</button>
+        <button class="ghost" id="removeRuntimeBtn" hidden>Reset Runtime</button>
+      </div>
+    </section>
 
     <section class="card primary-card">
       <div class="section-head">
@@ -38,9 +71,9 @@
         <label>
           <span>Phone remote mode</span>
           <select id="remoteModeSelect">
-            <option value="compatibility" selected>Select-fix mode (recommended for emulator)</option>
-            <option value="native">Native Google Remote Service</option>
+            <option value="native" selected>Native Google Remote Service</option>
             <option value="auto">Auto</option>
+            <option value="compatibility">Compatibility (experimental)</option>
           </select>
         </label>
       </div>
@@ -51,19 +84,20 @@
       </label>
       <label class="check-row">
         <input type="checkbox" id="coldBoot" />
-        <span>Cold boot Android TV instead of loading a snapshot</span>
+        <span>Cold boot TV instead of restoring the previous state</span>
       </label>
 
       <div class="actions">
         <button class="primary" id="startBtn">Start TV</button>
         <button class="danger" id="stopBtn" disabled>Stop TV</button>
       </div>
+
       <div class="pairing-code" id="pairingCode" hidden>
         <span>PAIRING CODE</span>
         <strong id="pairingCodeValue">------</strong>
         <small>Enter this code in the Google TV phone remote.</small>
       </div>
-      <p class="session-message" id="sessionMessage">Checking Android tools…</p>
+      <p class="session-message" id="sessionMessage">Install the TV Runtime to begin.</p>
     </section>
 
     <section class="grid">
@@ -71,13 +105,13 @@
         <p class="eyebrow">HOST</p>
         <div class="metric"><span>Platform</span><strong id="platform">—</strong></div>
         <div class="metric"><span>Architecture</span><strong id="arch">—</strong></div>
-        <div class="metric"><span>Android SDK</span><strong id="sdk">—</strong></div>
+        <div class="metric"><span>Runtime</span><strong id="sdk">—</strong></div>
       </article>
 
       <article class="card">
-        <p class="eyebrow">REMOTE</p>
-        <h3>Google TV phone remote</h3>
-        <p id="remoteText">When TV mode is running, open Google TV on your phone and select Ultimate TV OS.</p>
+        <p class="eyebrow">TV ENGINE</p>
+        <h3>Managed by Ultimate TV</h3>
+        <p id="remoteText">The Android virtualization engine and TV image are stored privately under Ultimate TV's runtime folder.</p>
         <div class="remote-state" id="remoteMode">Waiting for session</div>
       </article>
     </section>
