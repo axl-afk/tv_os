@@ -1,6 +1,6 @@
 {
   "name": "ultimate-tv-os",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "private": true,
   "type": "module",
   "description": "Software-defined TV host and Android TV remote bridge",
@@ -62,10 +62,8 @@
         "zip"
       ],
       "artifactName": "Ultimate-TV-OS-${version}-${arch}.${ext}",
-      "sign": {
-        "identity": "-",
-        "hardenedRuntime": false
-      }
+      "identity": "-",
+      "hardenedRuntime": false
     },
     "win": {
       "target": [
