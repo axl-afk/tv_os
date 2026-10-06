@@ -146,14 +146,14 @@ export async function discoverLatestGoogleTvImage(): Promise<RuntimeArtifact> {
     })
     .filter(stablePackage)
     .sort((a, b) => {
-      const aApi = Number(String(a?.["@_path"] ?? "").match(/android-(\\d+)/)?.[1] ?? 0);
-      const bApi = Number(String(b?.["@_path"] ?? "").match(/android-(\\d+)/)?.[1] ?? 0);
+      const aApi = Number(String(a?.["@_path"] ?? "").match(/android-(\d+)/)?.[1] ?? 0);
+      const bApi = Number(String(b?.["@_path"] ?? "").match(/android-(\d+)/)?.[1] ?? 0);
       if (bApi !== aApi) return bApi - aApi;
       return revisionScore(b.revision) - revisionScore(a.revision);
     });
   for (const pkg of packages) {
     const packagePath = String(pkg?.["@_path"] ?? "");
-    const apiLevel = Number(packagePath.match(/android-(\\d+)/)?.[1] ?? 0);
+    const apiLevel = Number(packagePath.match(/android-(\d+)/)?.[1] ?? 0);
     const archives = asArray(pkg?.archives?.archive);
     const archive = archives.find((item: any) => {
       const os = text(item?.["host-os"]);
