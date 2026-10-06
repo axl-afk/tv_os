@@ -335,6 +335,7 @@ app.whenReady().then(() => {
         deviceName?: string;
         coldBoot?: boolean;
         displayId?: string;
+        displayMode?: "native" | "embedded";
         fullscreen?: boolean;
         remoteMode?: "off" | "auto" | "native" | "compatibility";
       },
