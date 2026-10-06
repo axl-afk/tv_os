@@ -7,10 +7,10 @@ export function runDoctorSnapshot() {
   let adbDevices: string[] = [];
 
   if (tools.emulator) {
-    try { avds = listAvds(tools.emulator); } catch { avds = []; }
+    try { avds = listAvds(tools.emulator, tools.environment); } catch { avds = []; }
   }
   if (tools.adb) {
-    try { adbDevices = listAdbDevices(tools.adb); } catch { adbDevices = []; }
+    try { adbDevices = listAdbDevices(tools.adb, tools.environment); } catch { adbDevices = []; }
   }
 
   return {
