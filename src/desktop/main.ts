@@ -32,6 +32,8 @@ let displayStream: EmulatorDisplayStream | null = null;
 let tvInput: AdbInput | null = null;
 let tvGuestSize = { width: 1920, height: 1080 };
 let closingTvSurface = false;
+let quitCleanupInProgress = false;
+let quitCleanupComplete = false;
 
 function rendererPath(file = "renderer.html") {
   return path.join(app.getAppPath(), "desktop", file);
@@ -356,9 +358,33 @@ app.whenReady().then(() => {
   });
 });
 
-app.on("before-quit", () => {
-  displayStream?.stop();
-  void session.stop();
+app.on("before-quit", (event) => {
+  if (quitCleanupComplete) return;
+
+  const state = session.status().state;
+  const needsCleanup =
+    state !== "idle" ||
+    Boolean(displayStream) ||
+    Boolean(tvWindow && !tvWindow.isDestroyed());
+
+  if (!needsCleanup) {
+    quitCleanupComplete = true;
+    return;
+  }
+
+  event.preventDefault();
+  if (quitCleanupInProgress) return;
+  quitCleanupInProgress = true;
+
+  void stopTvCompletely()
+    .catch((error) => {
+      console.error("Ultimate TV shutdown cleanup failed:", error);
+    })
+    .finally(() => {
+      quitCleanupComplete = true;
+      quitCleanupInProgress = false;
+      app.quit();
+    });
 });
 
 app.on("window-all-closed", () => {
