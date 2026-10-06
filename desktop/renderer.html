@@ -73,6 +73,13 @@
           <select id="displaySelect"></select>
         </label>
         <label>
+          <span>Display mode</span>
+          <select id="displayModeSelect">
+            <option value="native" selected>Native Performance — 4K / 120 Hz target</option>
+            <option value="embedded">Embedded — integrated 720p / 60 FPS stream</option>
+          </select>
+        </label>
+        <label>
           <span>Phone remote mode</span>
           <select id="remoteModeSelect">
             <option value="native" selected>Native Google Remote Service</option>
@@ -84,7 +91,7 @@
       </div>
 
       <p class="embedded-note">
-        Google TV runs hidden inside Ultimate TV. Open it as a normal resizable window, or choose fullscreen when you want it.
+        Native Performance renders the 4K TV directly through the emulator for the smoothest video. Embedded mode keeps the TV inside Ultimate TV but is bandwidth-limited.
       </p>
       <label class="check-row">
         <input type="checkbox" id="coldBoot" />
