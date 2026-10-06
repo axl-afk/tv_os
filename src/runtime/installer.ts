@@ -229,7 +229,7 @@ function avdConfig(apiLevel: number, abi: string): string {
     "abi.type=" + abi,
     "avd.ini.displayname=Ultimate TV OS",
     "avd.ini.encoding=UTF-8",
-    "disk.dataPartition.size=16G",
+    "disk.dataPartition.size=4G",
     "fastboot.forceColdBoot=no",
     "fastboot.forceFastBoot=yes",
     "hw.accelerometer=no",
