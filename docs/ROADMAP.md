@@ -40,10 +40,17 @@ Completed:
 - packaged DMG/ZIP, EXE, AppImage, and DEB builds;
 - live Google package-manifest monitoring.
 
+Recently completed:
+
+- the desktop path now launches Google TV headlessly instead of exposing an emulator window;
+- Ultimate TV owns a frameless fullscreen TV surface;
+- monitor selection is built into the launcher;
+- the guest display is streamed over the emulator's local gRPC display API;
+- keyboard and pointer input are forwarded to the guest.
+
 Remaining before M1 is truly consumer-ready:
 
-- replace the external emulator window with an Ultimate TV-owned embedded/borderless TV surface;
-- reliable monitor selection and fullscreen behavior;
+- validate the embedded display path on real macOS/Windows/Linux hardware and optimize beyond the initial PNG/1080p renderer;
 - remote tap/OK fix;
 - suspend/resume and crash recovery;
 - polished audio/display routing;
