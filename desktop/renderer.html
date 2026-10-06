@@ -69,19 +69,23 @@
           <input id="deviceName" value="Ultimate TV OS" maxlength="48" />
         </label>
         <label>
+          <span>TV display</span>
+          <select id="displaySelect"></select>
+        </label>
+        <label>
           <span>Phone remote mode</span>
           <select id="remoteModeSelect">
             <option value="native" selected>Native Google Remote Service</option>
+            <option value="off">Off for now</option>
             <option value="auto">Auto</option>
             <option value="compatibility">Compatibility (experimental)</option>
           </select>
         </label>
       </div>
 
-      <label class="check-row">
-        <input type="checkbox" id="fullscreen" checked />
-        <span>Enter fullscreen TV mode automatically</span>
-      </label>
+      <p class="embedded-note">
+        Google TV runs hidden inside Ultimate TV. The selected monitor opens as a real borderless fullscreen TV surface.
+      </p>
       <label class="check-row">
         <input type="checkbox" id="coldBoot" />
         <span>Cold boot TV instead of restoring the previous state</span>
