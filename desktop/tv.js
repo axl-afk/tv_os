@@ -4,6 +4,7 @@ const frameEl = document.getElementById("frame");
 const boot = document.getElementById("boot");
 const bootText = document.getElementById("bootText");
 const controls = document.getElementById("controls");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
 const exitBtn = document.getElementById("exitBtn");
 const surfaceStatus = document.getElementById("surfaceStatus");
 
@@ -14,6 +15,7 @@ let latestFrame = null;
 let rafScheduled = false;
 let textureWidth = 0;
 let textureHeight = 0;
+let isFullscreen = false;
 
 const gl = frameEl.getContext("webgl", {
   alpha: false,
@@ -230,6 +232,11 @@ api.onFrame((frame) => {
   scheduleFrame();
 });
 
+api.onWindowState((state) => {
+  isFullscreen = Boolean(state?.fullscreen);
+  fullscreenBtn.textContent = isFullscreen ? "Windowed" : "Fullscreen";
+});
+
 api.onStatus((status) => {
   surfaceStatus.textContent = status?.message || "Embedded TV mode";
   if (status?.error) {
@@ -259,6 +266,16 @@ window.addEventListener("mousemove", showControls);
 window.addEventListener("mousedown", showControls);
 
 window.addEventListener("keydown", (event) => {
+  const fullscreenShortcut =
+    event.key === "F11" ||
+    (event.metaKey && event.ctrlKey && event.key.toLowerCase() === "f");
+
+  if (fullscreenShortcut) {
+    event.preventDefault();
+    api.toggleFullscreen();
+    return;
+  }
+
   if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "q") {
     event.preventDefault();
     api.exit();
@@ -326,6 +343,7 @@ frameEl.addEventListener("click", (event) => {
   api.tap(localX / drawnWidth, localY / drawnHeight);
 });
 
+fullscreenBtn.addEventListener("click", () => api.toggleFullscreen());
 exitBtn.addEventListener("click", () => api.exit());
 
 resizeCanvas();
