@@ -2,9 +2,10 @@ import { EventEmitter } from "node:events";
 import { detectAndroidTools, listAdbDevices, listAvds } from "../android/sdk.js";
 import { launchTvEmulator } from "../android/emulator.js";
 import { AdbInput } from "../android/adbInput.js";
-import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator } from "../android/readiness.js";
+import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator, stopRunningAvdInstances } from "../android/readiness.js";
 import { requestEmulatorFullscreen } from "../host/fullscreen.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
+import { terminateProcessTree } from "../lib/process.js";
 import { AndroidTvRemoteBridge } from "../remote/server.js";
 import {
   NativeAndroidTvRemoteProxy,
@@ -83,6 +84,12 @@ export class UltimateTvSession extends EventEmitter {
 
     this.adbPath = tools.adb;
 
+    // A previous crash can leave our private AVD alive. Clear only instances
+    // with this exact AVD name so Start TV remains deterministic.
+    stopRunningAvdInstances(tools.adb, options.avd);
+
+    let launchedPid: number | undefined;
+
     try {
       this.setState({
         state: "starting",
@@ -102,6 +109,7 @@ export class UltimateTvSession extends EventEmitter {
         grpcPort,
         environment: tools.environment,
       });
+      launchedPid = pid;
 
       this.setState({
         state: "waiting-adb",
@@ -222,6 +230,22 @@ export class UltimateTvSession extends EventEmitter {
 
       return this.status();
     } catch (error) {
+      try {
+        await this.bridge?.stop();
+      } catch {}
+      this.bridge = undefined;
+
+      const serial = this.snapshot.serial;
+      if (serial && this.adbPath) {
+        try {
+          stopEmulator(this.adbPath, serial);
+        } catch {
+          terminateProcessTree(launchedPid);
+        }
+      } else {
+        terminateProcessTree(launchedPid);
+      }
+
       const message = error instanceof Error ? error.message : String(error);
       this.setState({
         ...this.snapshot,
@@ -251,8 +275,10 @@ export class UltimateTvSession extends EventEmitter {
         try {
           stopEmulator(this.adbPath, serial);
         } catch {
-          // The user may already have closed the emulator window.
+          terminateProcessTree(this.snapshot.pid);
         }
+      } else {
+        terminateProcessTree(this.snapshot.pid);
       }
 
       this.adbPath = undefined;
