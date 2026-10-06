@@ -1,4 +1,4 @@
-import { spawnDetached } from "../lib/process.js";
+import { run, spawnDetached } from "../lib/process.js";
 
 export type LaunchOptions = {
   emulatorPath: string;
@@ -10,6 +10,7 @@ export type LaunchOptions = {
   grpcPort?: number;
   gpuMode?: string;
   environment?: NodeJS.ProcessEnv;
+  logFile?: string;
 };
 
 export function buildEmulatorArgs(
@@ -37,10 +38,27 @@ export function buildEmulatorArgs(
   return args;
 }
 
+export function checkEmulatorAcceleration(
+  emulatorPath: string,
+  environment?: NodeJS.ProcessEnv,
+): { ok: boolean; detail: string } {
+  const result = run(emulatorPath, ["-accel-check"], { env: environment });
+  const detail = [result.stdout, result.stderr]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    ok: result.ok,
+    detail: detail || "Android Emulator hardware acceleration check failed.",
+  };
+}
+
 export function launchTvEmulator(options: LaunchOptions): number | undefined {
   const args = buildEmulatorArgs(options);
 
   return spawnDetached(options.emulatorPath, args, {
     env: options.environment,
+    logFile: options.logFile,
   });
 }
