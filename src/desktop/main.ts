@@ -22,7 +22,7 @@ function createWindow() {
     backgroundColor: "#090d16",
     title: "Ultimate TV OS",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(app.getAppPath(), "desktop", "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
