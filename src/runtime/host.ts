@@ -11,19 +11,32 @@ export function resolveRuntimeHostArch(
   return processArch === "arm64" ? "arm64" : "x64";
 }
 
-function macHasArm64Hardware(): boolean {
-  if (process.platform !== "darwin") return false;
-
+function sysctlNumber(name: string): number | null {
   const result = spawnSync(
     "/usr/sbin/sysctl",
-    ["-n", "hw.optional.arm64"],
+    ["-n", name],
     {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     },
   );
 
-  return result.status === 0 && result.stdout.trim() === "1";
+  if (result.status !== 0) return null;
+  const value = Number(result.stdout.trim());
+  return Number.isFinite(value) ? value : null;
+}
+
+function macHasArm64Hardware(): boolean {
+  if (process.platform !== "darwin") return false;
+  if (process.arch === "arm64") return true;
+
+  // Apple documents sysctl.proc_translated=1 for an Intel process currently
+  // running through Rosetta on Apple Silicon.
+  if (sysctlNumber("sysctl.proc_translated") === 1) return true;
+
+  // Hardware-feature fallback for environments where proc_translated is not
+  // exposed to the calling process.
+  return sysctlNumber("hw.optional.arm64") === 1;
 }
 
 export function runtimeHostArch(): RuntimeHostArch {
