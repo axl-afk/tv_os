@@ -4,6 +4,7 @@ import { launchTvEmulator } from "../android/emulator.js";
 import { AdbInput } from "../android/adbInput.js";
 import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator } from "../android/readiness.js";
 import { requestEmulatorFullscreen } from "../host/fullscreen.js";
+import { reserveFreeLoopbackPort } from "../lib/network.js";
 import { AndroidTvRemoteBridge } from "../remote/server.js";
 import {
   NativeAndroidTvRemoteProxy,
@@ -27,6 +28,8 @@ export type SessionSnapshot = {
   pid?: number;
   remoteMode?: "native" | "compatibility";
   pairingCode?: string;
+  embedded?: boolean;
+  grpcPort?: number;
   message?: string;
 };
 
@@ -35,7 +38,8 @@ export type StartSessionOptions = {
   deviceName?: string;
   coldBoot?: boolean;
   fullscreen?: boolean;
-  remoteMode?: "auto" | "native" | "compatibility";
+  embedded?: boolean;
+  remoteMode?: "off" | "auto" | "native" | "compatibility";
 };
 
 type StoppableBridge = {
@@ -87,10 +91,15 @@ export class UltimateTvSession extends EventEmitter {
       });
 
       const before = new Set(listAdbDevices(tools.adb, tools.environment));
+      const embedded = options.embedded === true;
+      const grpcPort = embedded ? await reserveFreeLoopbackPort() : undefined;
+
       const pid = launchTvEmulator({
         emulatorPath: tools.emulator,
         avd: options.avd,
         coldBoot: options.coldBoot,
+        headless: embedded,
+        grpcPort,
         environment: tools.environment,
       });
 
@@ -98,7 +107,11 @@ export class UltimateTvSession extends EventEmitter {
         state: "waiting-adb",
         avd: options.avd,
         pid,
-        message: "Waiting for Android Debug Bridge…",
+        embedded,
+        grpcPort,
+        message: embedded
+          ? "Starting hidden TV engine…"
+          : "Waiting for Android Debug Bridge…",
       });
 
       const serial = await waitForNewAdbDevice(tools.adb, before);
@@ -108,73 +121,103 @@ export class UltimateTvSession extends EventEmitter {
         avd: options.avd,
         serial,
         pid,
-        message: "Android TV is booting…",
+        embedded,
+        grpcPort,
+        message: embedded
+          ? "Google TV is booting inside Ultimate TV…"
+          : "Android TV is booting…",
       });
 
       await waitForAndroidBoot(tools.adb, serial);
 
-      const fullscreen = options.fullscreen !== false
-        ? requestEmulatorFullscreen(options.avd)
-        : { ok: false, message: "Fullscreen disabled." };
+      const fullscreen = embedded
+        ? { ok: true, message: "Ultimate TV owns the fullscreen surface." }
+        : options.fullscreen !== false
+          ? requestEmulatorFullscreen(options.avd)
+          : { ok: false, message: "Fullscreen disabled." };
 
       this.setState({
         state: "starting-remote",
         avd: options.avd,
         serial,
         pid,
-        message: fullscreen.ok
-          ? "TV is fullscreen. Starting phone remote…"
-          : `Starting phone remote… ${fullscreen.message}`,
+        embedded,
+        grpcPort,
+        message: embedded
+          ? "TV engine is ready. Preparing the Ultimate TV screen…"
+          : fullscreen.ok
+            ? "TV is fullscreen. Starting phone remote…"
+            : `Starting phone remote… ${fullscreen.message}`,
       });
 
-      const nativeRemoteAvailable = hasNativeAndroidTvRemoteService(tools.adb, serial);
       const preference = options.remoteMode ?? "auto";
-      if (preference === "native" && !nativeRemoteAvailable) {
-        throw new Error("Native Google Android TV Remote Service is not installed in this TV image.");
+      let activeRemoteMode: "native" | "compatibility" | undefined;
+      let remoteMessage = "Phone remote disabled.";
+
+      if (preference !== "off") {
+        const nativeRemoteAvailable =
+          hasNativeAndroidTvRemoteService(tools.adb, serial);
+
+        const useNative =
+          preference === "native" ||
+          (preference === "auto" && nativeRemoteAvailable);
+
+        if (preference === "native" && !nativeRemoteAvailable) {
+          remoteMessage = "Native Google phone remote service is unavailable in this image.";
+        } else {
+          this.bridge = useNative
+            ? new NativeAndroidTvRemoteProxy(
+                tools.adb,
+                serial,
+                options.deviceName ?? "Ultimate TV OS",
+              )
+            : new AndroidTvRemoteBridge(
+                new AdbInput(tools.adb, serial),
+                options.deviceName ?? "Ultimate TV OS",
+                {
+                  onPairingCode: (pairingCode) => {
+                    this.setState({
+                      ...this.snapshot,
+                      pairingCode,
+                      message: `Enter pairing code ${pairingCode} in the Google TV phone remote.`,
+                    });
+                  },
+                  onPaired: () => {
+                    this.setState({
+                      ...this.snapshot,
+                      pairingCode: undefined,
+                      message: "Phone paired.",
+                    });
+                  },
+                },
+              );
+
+          try {
+            await this.bridge.start();
+            activeRemoteMode = useNative ? "native" : "compatibility";
+            remoteMessage = useNative
+              ? "Native Google phone remote is available."
+              : "Experimental compatibility phone remote is available.";
+          } catch (error) {
+            this.bridge = undefined;
+            remoteMessage =
+              "TV started, but phone remote is unavailable: " +
+              (error instanceof Error ? error.message : String(error));
+          }
+        }
       }
-
-      const useNative =
-        preference === "native" ||
-        (preference === "auto" && nativeRemoteAvailable);
-
-      this.bridge = useNative
-        ? new NativeAndroidTvRemoteProxy(
-            tools.adb,
-            serial,
-            options.deviceName ?? "Ultimate TV OS",
-          )
-        : new AndroidTvRemoteBridge(
-            new AdbInput(tools.adb, serial),
-            options.deviceName ?? "Ultimate TV OS",
-            {
-              onPairingCode: (pairingCode) => {
-                this.setState({
-                  ...this.snapshot,
-                  pairingCode,
-                  message: `Enter pairing code ${pairingCode} in the Google TV phone remote.`,
-                });
-              },
-              onPaired: () => {
-                this.setState({
-                  ...this.snapshot,
-                  pairingCode: undefined,
-                  message: "Phone paired. Select-fix mode is ready.",
-                });
-              },
-            },
-          );
-
-      await this.bridge.start();
 
       this.setState({
         state: "running",
         avd: options.avd,
         serial,
         pid,
-        remoteMode: useNative ? "native" : "compatibility",
-        message: useNative
-          ? `TV is ready in native Google remote mode. ${fullscreen.message}`
-          : `TV is ready in Select-fix compatibility mode. Phone tap/select is mapped to Android ENTER. ${fullscreen.message}`,
+        embedded,
+        grpcPort,
+        remoteMode: activeRemoteMode,
+        message: embedded
+          ? `Ultimate TV is ready. ${remoteMessage}`
+          : `TV is ready. ${fullscreen.message} ${remoteMessage}`,
       });
 
       return this.status();
