@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ultimate TV OS</title>
+  <link rel="stylesheet" href="renderer.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">SOFTWARE-DEFINED TELEVISION</p>
+        <h1>Ultimate TV OS</h1>
+        <p class="subtitle">Turn this computer into a couch-first Google TV host.</p>
+      </div>
+      <div class="status-pill" id="statusPill"><span></span><b id="statusText">Checking…</b></div>
+    </header>
+
+    <section class="card primary-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">TV SESSION</p>
+          <h2>Start your TV</h2>
+        </div>
+        <button class="ghost" id="refreshBtn">Refresh</button>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          <span>TV device</span>
+          <select id="avdSelect"></select>
+        </label>
+        <label>
+          <span>Name shown on phone</span>
+          <input id="deviceName" value="Ultimate TV OS" maxlength="48" />
+        </label>
+      </div>
+
+      <label class="check-row">
+        <input type="checkbox" id="coldBoot" />
+        <span>Cold boot Android TV instead of loading a snapshot</span>
+      </label>
+
+      <div class="actions">
+        <button class="primary" id="startBtn">Start TV</button>
+        <button class="danger" id="stopBtn" disabled>Stop TV</button>
+      </div>
+      <p class="session-message" id="sessionMessage">Checking Android tools…</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <p class="eyebrow">HOST</p>
+        <div class="metric"><span>Platform</span><strong id="platform">—</strong></div>
+        <div class="metric"><span>Architecture</span><strong id="arch">—</strong></div>
+        <div class="metric"><span>Android SDK</span><strong id="sdk">—</strong></div>
+      </article>
+
+      <article class="card">
+        <p class="eyebrow">REMOTE</p>
+        <h3>Google TV phone remote</h3>
+        <p id="remoteText">When TV mode is running, open Google TV on your phone and select Ultimate TV OS.</p>
+        <div class="remote-state" id="remoteMode">Waiting for session</div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">READINESS</p>
+          <h2>System checks</h2>
+        </div>
+        <button class="ghost" id="docsBtn">Project docs</button>
+      </div>
+      <div id="checks" class="checks"></div>
+    </section>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>
