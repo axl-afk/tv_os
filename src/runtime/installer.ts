@@ -18,6 +18,7 @@ import {
   runtimeRoot,
   runtimeSdkRoot,
 } from "./paths.js";
+import { runtimeHostArch } from "./host.js";
 import {
   discoverLatestEmulator,
   discoverLatestGoogleTvImage,
@@ -56,7 +57,8 @@ function ensureSupportedHost() {
   if (!["darwin", "win32", "linux"].includes(process.platform)) {
     throw new Error("Ultimate TV runtime installation is unsupported on this operating system.");
   }
-  if (process.platform !== "darwin" && process.arch !== "x64") {
+  const hardwareArch = runtimeHostArch();
+  if (process.platform !== "darwin" && hardwareArch !== "x64") {
     throw new Error("This build currently supports x64 on Windows/Linux and arm64/x64 on macOS.");
   }
 }
