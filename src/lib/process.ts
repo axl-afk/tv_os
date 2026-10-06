@@ -76,3 +76,23 @@ export function terminateProcessTree(pid: number | undefined) {
     } catch {}
   }
 }
+
+export function processIsAlive(pid: number | undefined): boolean {
+  if (!pid || !Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+export function readLogTail(file: string | undefined, maxChars = 6000): string {
+  if (!file) return "";
+  try {
+    const value = fs.readFileSync(file, "utf8").trim();
+    return value.slice(-maxChars);
+  } catch {
+    return "";
+  }
+}
