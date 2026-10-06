@@ -59,6 +59,41 @@ const remoteSchema = `
 syntax = "proto3";
 package remote;
 
+message RemoteAppLinkLaunchRequest { string app_link = 1; }
+message RemoteStart { bool started = 1; }
+message RemoteVoiceBegin { int32 session_id = 1; string package_name = 2; }
+message RemoteVoicePayload { int32 session_id = 1; bytes samples = 2; }
+message RemoteVoiceEnd { int32 session_id = 1; }
+message RemoteTextFieldStatus {
+  int32 counter_field = 1;
+  string value = 2;
+  int32 start = 3;
+  int32 end = 4;
+  int32 int5 = 5;
+  string label = 6;
+}
+message RemoteImeObject { int32 start = 1; int32 end = 2; string value = 3; }
+message RemoteEditInfo { int32 insert = 1; RemoteImeObject text_field_status = 2; }
+message RemoteImeBatchEdit {
+  int32 ime_counter = 1;
+  int32 field_counter = 2;
+  repeated RemoteEditInfo edit_info = 3;
+}
+message RemoteAppInfo {
+  int32 counter = 1;
+  int32 int2 = 2;
+  int32 int3 = 3;
+  string int4 = 4;
+  int32 int7 = 7;
+  int32 int8 = 8;
+  string label = 10;
+  string app_package = 12;
+  int32 int13 = 13;
+}
+message RemoteImeKeyInject {
+  RemoteAppInfo app_info = 1;
+  RemoteTextFieldStatus text_field_status = 2;
+}
 message RemoteDeviceInfo {
   string model = 1;
   string vendor = 2;
@@ -72,17 +107,17 @@ message RemoteSetActive { int32 active = 1; }
 message RemotePingRequest { int32 val1 = 1; int32 val2 = 2; }
 message RemotePingResponse { int32 val1 = 1; }
 message RemoteKeyInject { int32 key_code = 1; int32 direction = 2; }
-message RemoteStart { bool started = 1; }
-message RemoteAppLinkLaunchRequest { string app_link = 1; }
-message RemoteEditInfo { int32 insert = 2; }
-message RemoteImeBatchEdit { int32 ime_counter = 1; int32 field_counter = 2; RemoteEditInfo edit_info = 3; }
 message RemoteMessage {
   RemoteConfigure remote_configure = 1;
   RemoteSetActive remote_set_active = 2;
   RemotePingRequest remote_ping_request = 8;
   RemotePingResponse remote_ping_response = 9;
   RemoteKeyInject remote_key_inject = 10;
+  RemoteImeKeyInject remote_ime_key_inject = 20;
   RemoteImeBatchEdit remote_ime_batch_edit = 21;
+  RemoteVoiceBegin remote_voice_begin = 30;
+  RemoteVoicePayload remote_voice_payload = 31;
+  RemoteVoiceEnd remote_voice_end = 32;
   RemoteStart remote_start = 40;
   RemoteAppLinkLaunchRequest remote_app_link_launch_request = 90;
 }
@@ -97,6 +132,27 @@ const remoteRoot = rootFrom(remoteSchema);
 
 export const PairingMessage = pairingRoot.lookupType("pairing.PairingMessage");
 export const RemoteMessage = remoteRoot.lookupType("remote.RemoteMessage");
+
+export const RemoteFeature = {
+  PING: 2 ** 0,
+  KEY: 2 ** 1,
+  IME: 2 ** 2,
+  VOICE: 2 ** 3,
+  UNKNOWN_1: 2 ** 4,
+  POWER: 2 ** 5,
+  VOLUME: 2 ** 6,
+  APP_LINK: 2 ** 9,
+} as const;
+
+// v0.1 deliberately does not advertise VOICE until microphone audio can be
+// delivered into the guest through a protected, low-latency path.
+export const HOST_REMOTE_FEATURES =
+  RemoteFeature.PING |
+  RemoteFeature.KEY |
+  RemoteFeature.IME |
+  RemoteFeature.POWER |
+  RemoteFeature.VOLUME |
+  RemoteFeature.APP_LINK;
 
 export function encodeDelimited(type: protobuf.Type, payload: object): Buffer {
   const error = type.verify(payload);
