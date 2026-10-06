@@ -7,10 +7,21 @@ export type CommandResult = {
   status: number | null;
 };
 
-export function run(command: string, args: string[] = []): CommandResult {
+export type ProcessOptions = {
+  env?: NodeJS.ProcessEnv;
+  cwd?: string;
+};
+
+export function run(
+  command: string,
+  args: string[] = [],
+  options: ProcessOptions = {},
+): CommandResult {
   const result = spawnSync(command, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    env: options.env ? { ...process.env, ...options.env } : process.env,
+    cwd: options.cwd,
   });
 
   return {
@@ -21,10 +32,16 @@ export function run(command: string, args: string[] = []): CommandResult {
   };
 }
 
-export function spawnDetached(command: string, args: string[]) {
+export function spawnDetached(
+  command: string,
+  args: string[],
+  options: ProcessOptions = {},
+) {
   const child = spawn(command, args, {
     detached: true,
     stdio: "ignore",
+    env: options.env ? { ...process.env, ...options.env } : process.env,
+    cwd: options.cwd,
   });
   child.unref();
   return child.pid;
