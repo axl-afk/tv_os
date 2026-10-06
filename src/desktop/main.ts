@@ -31,6 +31,8 @@ let tvWindow: BrowserWindow | null = null;
 let displayStream: EmulatorDisplayStream | null = null;
 let tvInput: AdbInput | null = null;
 let tvGuestSize = { width: 1920, height: 1080 };
+let tvFrameInFlight = false;
+let pendingTvFrame: TvFrame | null = null;
 let closingTvSurface = false;
 let quitCleanupInProgress = false;
 let quitCleanupComplete = false;
@@ -94,6 +96,8 @@ async function stopDisplayStream() {
   displayStream = null;
   tvInput = null;
   tvGuestSize = { width: 1920, height: 1080 };
+  tvFrameInFlight = false;
+  pendingTvFrame = null;
 }
 
 async function closeTvSurface() {
@@ -200,18 +204,31 @@ async function createTvSurface(
     appPath: app.getAppPath(),
     width: 1920,
     height: 1080,
-    maxFps: 30,
+    width: 1280,
+    height: 720,
+    maxFps: 60,
   });
 
-  displayStream.on("frame", (frame: TvFrame) => {
+  const sendFrame = (frame: TvFrame) => {
+    if (!tvWindow || tvWindow.isDestroyed()) return;
+
+    if (tvFrameInFlight) {
+      pendingTvFrame = frame;
+      return;
+    }
+
+    tvFrameInFlight = true;
     sendTv("tv:frame", {
-      png: frame.png,
+      pixels: frame.pixels,
+      format: frame.format,
       width: frame.width,
       height: frame.height,
       sequence: frame.sequence,
       timestampUs: frame.timestampUs,
     });
-  });
+  };
+
+  displayStream.on("frame", sendFrame);
 
   displayStream.on("error", (error) => {
     sendTv("tv:status", {
@@ -319,6 +336,27 @@ app.whenReady().then(() => {
       tvInput.key(Number(keyCode));
     } catch (error) {
       sendTv("tv:status", { error: String(error) });
+    }
+  });
+
+  ipcMain.on("tv:frame-consumed", () => {
+    tvFrameInFlight = false;
+
+    if (pendingTvFrame) {
+      const next = pendingTvFrame;
+      pendingTvFrame = null;
+
+      if (tvWindow && !tvWindow.isDestroyed()) {
+        tvFrameInFlight = true;
+        sendTv("tv:frame", {
+          pixels: next.pixels,
+          format: next.format,
+          width: next.width,
+          height: next.height,
+          sequence: next.sequence,
+          timestampUs: next.timestampUs,
+        });
+      }
     }
   });
 
