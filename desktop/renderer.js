@@ -9,7 +9,7 @@ const els = {
   avd: document.getElementById("avdSelect"),
   deviceName: document.getElementById("deviceName"),
   coldBoot: document.getElementById("coldBoot"),
-  fullscreen: document.getElementById("fullscreen"),
+  displaySelect: document.getElementById("displaySelect"),
   remoteModeSelect: document.getElementById("remoteModeSelect"),
   start: document.getElementById("startBtn"),
   stop: document.getElementById("stopBtn"),
@@ -52,7 +52,7 @@ function updateControls() {
   els.avd.disabled = !runtimeReady || busy || running;
   els.deviceName.disabled = busy || running;
   els.coldBoot.disabled = busy || running;
-  els.fullscreen.disabled = busy || running;
+  els.displaySelect.disabled = busy || running;
   els.remoteModeSelect.disabled = busy || running;
 }
 
@@ -168,6 +168,27 @@ async function refresh() {
   setRuntimeStatus(info.runtime);
   renderChecks(info);
 
+  const currentDisplay = els.displaySelect.value;
+  els.displaySelect.innerHTML = "";
+  for (const display of info.displays || []) {
+    const option = document.createElement("option");
+    option.value = display.id;
+    option.textContent =
+      display.label +
+      " — " +
+      display.width +
+      "×" +
+      display.height +
+      (display.primary ? " (Primary)" : "");
+    els.displaySelect.appendChild(option);
+  }
+  if (currentDisplay && (info.displays || []).some((display) => display.id === currentDisplay)) {
+    els.displaySelect.value = currentDisplay;
+  } else {
+    const primary = (info.displays || []).find((display) => display.primary);
+    if (primary) els.displaySelect.value = primary.id;
+  }
+
   const current = els.avd.value;
   els.avd.innerHTML = "";
 
@@ -237,7 +258,7 @@ els.start.addEventListener("click", async () => {
       avd: els.avd.value,
       deviceName: els.deviceName.value.trim() || "Ultimate TV OS",
       coldBoot: els.coldBoot.checked,
-      fullscreen: els.fullscreen.checked,
+      displayId: els.displaySelect.value,
       remoteMode: els.remoteModeSelect.value,
     });
   } catch (error) {
