@@ -88,15 +88,22 @@ window.addEventListener("mousemove", showControls);
 window.addEventListener("mousedown", showControls);
 
 window.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "q") {
+    event.preventDefault();
+    api.exit();
+    return;
+  }
+
   const map = {
     ArrowUp: 19,
     ArrowDown: 20,
     ArrowLeft: 21,
     ArrowRight: 22,
     Enter: 66,
-    " ": 66,
     Escape: 4,
-    Backspace: 4,
+    Backspace: 67,
+    Delete: 112,
+    Tab: 61,
     Home: 3,
     MediaPlayPause: 85,
   };
@@ -105,12 +112,20 @@ window.addEventListener("keydown", (event) => {
   if (keyCode !== undefined) {
     event.preventDefault();
     api.key(keyCode);
+    return;
   }
 
-  if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "q") {
+  if (!event.metaKey && !event.ctrlKey && !event.altKey && event.key.length === 1) {
     event.preventDefault();
-    api.exit();
+    api.text(event.key);
   }
+});
+
+window.addEventListener("paste", (event) => {
+  const value = event.clipboardData?.getData("text");
+  if (!value) return;
+  event.preventDefault();
+  api.text(value);
 });
 
 frameEl.addEventListener("click", (event) => {
