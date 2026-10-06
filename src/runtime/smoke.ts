@@ -47,6 +47,7 @@ launchTvEmulator({
   avd: "Ultimate_TV_OS",
   coldBoot: true,
   headless: true,
+  noAudio: true,
   gpuMode: "swiftshader_indirect",
   environment: tools.environment,
 });
