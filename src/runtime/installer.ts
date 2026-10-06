@@ -19,7 +19,10 @@ import {
   runtimeSdkRoot,
 } from "./paths.js";
 import { runtimeHostArch } from "./host.js";
-import { applyRuntimeStoragePolicy } from "./storage.js";
+import {
+  applyRuntimeGoogleTvProfile,
+  applyRuntimeStoragePolicy,
+} from "./storage.js";
 import {
   discoverLatestEmulator,
   discoverLatestGoogleTvImage,
@@ -287,7 +290,7 @@ function avdConfig(apiLevel: number, abi: string): string {
   const cpuArch = abi === "arm64-v8a" ? "arm64" : "x86_64";
   return [
     "AvdId=" + RUNTIME_AVD_NAME,
-    "PlayStore.enabled=true",
+    "PlayStore.enabled=false",
     "abi.type=" + abi,
     "avd.ini.displayname=Ultimate TV OS",
     "avd.ini.encoding=UTF-8",
@@ -303,17 +306,22 @@ function avdConfig(apiLevel: number, abi: string): string {
     "hw.cpu.arch=" + cpuArch,
     "hw.cpu.ncore=4",
     "hw.dPad=yes",
+    "hw.device.manufacturer=Google",
+    "hw.device.name=tv_4k",
     "hw.gps=no",
     "hw.gpu.enabled=yes",
     "hw.gpu.mode=auto",
+    "hw.initialOrientation=landscape",
     "hw.keyboard=yes",
-    "hw.lcd.density=320",
+    "hw.keyboard.lid=yes",
+    "hw.lcd.density=640",
     "hw.lcd.height=2160",
     "hw.lcd.width=3840",
     "hw.mainKeys=yes",
     "hw.ramSize=4096",
     "hw.sdCard=no",
     "hw.sensors.orientation=no",
+    "hw.sensors.proximity=no",
     "hw.trackBall=no",
     "image.sysdir.1=system-images/android-" + apiLevel + "/google-tv/" + abi + "/",
     "runtime.network.latency=none",
@@ -502,6 +510,7 @@ export class RuntimeInstaller extends EventEmitter {
         await this.createAvd(image.apiLevel, image.abi);
       } else {
         applyRuntimeStoragePolicy();
+        applyRuntimeGoogleTvProfile();
       }
 
       await this.ensureExecutableBits();
