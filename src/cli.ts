@@ -4,6 +4,7 @@ import { detectAndroidTools, listAdbDevices, listAvds } from "./android/sdk.js";
 import { launchTvEmulator } from "./android/emulator.js";
 import { AdbInput } from "./android/adbInput.js";
 import { AndroidTvRemoteBridge } from "./remote/server.js";
+import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator } from "./android/readiness.js";
 import { runDoctor } from "./doctor.js";
 
 const program = new Command();
@@ -53,6 +54,66 @@ program
       writableSystem: options.writableSystem,
     });
     console.log(`Ultimate TV guest launched (pid ${pid ?? "unknown"}).`);
+  });
+
+
+program
+  .command("session")
+  .description("Launch a TV AVD, wait for boot, then expose it to the Google TV phone remote")
+  .requiredOption("--avd <name>", "AVD name")
+  .option("--name <name>", "TV name shown to phones", "Ultimate TV OS")
+  .option("--cold", "Cold boot instead of loading a snapshot", false)
+  .action(async (options) => {
+    const tools = detectAndroidTools();
+    if (!tools.emulator || !tools.adb) {
+      throw new Error("Android emulator and adb are required.");
+    }
+
+    const installed = listAvds(tools.emulator);
+    if (!installed.includes(options.avd)) {
+      throw new Error(
+        `AVD "${options.avd}" is not installed. Available: ${installed.join(", ") || "none"}`,
+      );
+    }
+
+    const before = new Set(listAdbDevices(tools.adb));
+    const pid = launchTvEmulator({
+      emulatorPath: tools.emulator,
+      avd: options.avd,
+      coldBoot: options.cold,
+    });
+
+    console.log(`TV guest launched (pid ${pid ?? "unknown"}). Waiting for ADB...`);
+    const serial = await waitForNewAdbDevice(tools.adb, before);
+    console.log(`Android guest detected as ${serial}. Waiting for boot...`);
+    await waitForAndroidBoot(tools.adb, serial);
+    console.log("Android TV is ready.");
+
+    const bridge = new AndroidTvRemoteBridge(
+      new AdbInput(tools.adb, serial),
+      options.name,
+    );
+    await bridge.start();
+
+    const shutdown = async () => {
+      console.log("\nStopping Ultimate TV session...");
+      await bridge.stop();
+      process.exit(0);
+    };
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+  });
+
+program
+  .command("stop")
+  .description("Stop a running Android emulator")
+  .requiredOption("--serial <serial>", "ADB emulator serial, for example emulator-5554")
+  .action((options) => {
+    const tools = detectAndroidTools();
+    if (!tools.adb) throw new Error("adb executable not found.");
+    stopEmulator(tools.adb, options.serial);
+    console.log(`Stopped ${options.serial}.`);
   });
 
 program
