@@ -55,6 +55,14 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: ${{ matrix.command }}
 
+      - name: Verify macOS code signatures
+        if: matrix.name == 'macOS'
+        shell: bash
+        run: |
+          codesign --verify --deep --strict --verbose=2 "release/mac/Ultimate TV OS.app"
+          codesign --verify --deep --strict --verbose=2 "release/mac-arm64/Ultimate TV OS.app"
+          codesign -dv --verbose=4 "release/mac-arm64/Ultimate TV OS.app" 2>&1 | grep -E "Signature=|TeamIdentifier=|Runtime Version=" || true
+
       - name: Upload macOS installers
         if: matrix.name == 'macOS'
         uses: actions/upload-artifact@v4
