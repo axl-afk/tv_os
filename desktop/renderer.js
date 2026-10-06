@@ -9,6 +9,7 @@ const els = {
   avd: document.getElementById("avdSelect"),
   deviceName: document.getElementById("deviceName"),
   coldBoot: document.getElementById("coldBoot"),
+  startFullscreen: document.getElementById("startFullscreen"),
   displaySelect: document.getElementById("displaySelect"),
   remoteModeSelect: document.getElementById("remoteModeSelect"),
   start: document.getElementById("startBtn"),
@@ -52,6 +53,7 @@ function updateControls() {
   els.avd.disabled = !runtimeReady || busy || running;
   els.deviceName.disabled = busy || running;
   els.coldBoot.disabled = busy || running;
+  els.startFullscreen.disabled = busy || running;
   els.displaySelect.disabled = busy || running;
   els.remoteModeSelect.disabled = busy || running;
 }
@@ -261,6 +263,7 @@ els.start.addEventListener("click", async () => {
       deviceName: els.deviceName.value.trim() || "Ultimate TV OS",
       coldBoot: els.coldBoot.checked,
       displayId: els.displaySelect.value,
+      fullscreen: els.startFullscreen.checked,
       remoteMode: els.remoteModeSelect.value,
     });
   } catch (error) {
