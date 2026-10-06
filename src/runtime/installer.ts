@@ -290,7 +290,7 @@ function avdConfig(apiLevel: number, abi: string): string {
   const cpuArch = abi === "arm64-v8a" ? "arm64" : "x86_64";
   return [
     "AvdId=" + RUNTIME_AVD_NAME,
-    "PlayStore.enabled=false",
+    "PlayStore.enabled=true",
     "abi.type=" + abi,
     "avd.ini.displayname=Ultimate TV OS",
     "avd.ini.encoding=UTF-8",
