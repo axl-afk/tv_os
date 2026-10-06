@@ -10,6 +10,72 @@ function adbArgs(serial: string, ...args: string[]) {
   return ["-s", serial, ...args];
 }
 
+function guestRemotePortsReady(adbPath: string, serial: string): boolean {
+  const probes = [
+    ["shell", "ss", "-ltn"],
+    ["shell", "netstat", "-ltn"],
+  ];
+
+  for (const probe of probes) {
+    const result = run(adbPath, adbArgs(serial, ...probe));
+    if (!result.ok) continue;
+    const output = result.stdout;
+    if (output.includes(":6466") && output.includes(":6467")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export async function prepareNativeAndroidTvRemoteService(
+  adbPath: string,
+  serial: string,
+  timeoutMs = 12_000,
+): Promise<void> {
+  run(
+    adbPath,
+    adbArgs(
+      serial,
+      "shell",
+      "pm",
+      "enable",
+      REMOTE_SERVICE_PACKAGE,
+    ),
+  );
+
+  const broadcasts = [
+    "android.intent.action.USER_UNLOCKED",
+    "android.intent.action.BOOT_COMPLETED",
+  ];
+
+  for (const action of broadcasts) {
+    run(
+      adbPath,
+      adbArgs(
+        serial,
+        "shell",
+        "am",
+        "broadcast",
+        "-a",
+        action,
+        "-p",
+        REMOTE_SERVICE_PACKAGE,
+      ),
+    );
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (guestRemotePortsReady(adbPath, serial)) return;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+
+  throw new Error(
+    "Google Android TV Remote Service did not open ports 6466/6467 after TV boot.",
+  );
+}
+
 function createAdbForward(adbPath: string, serial: string, guestPort: number): number {
   const result = run(adbPath, adbArgs(serial, "forward", "tcp:0", `tcp:${guestPort}`));
   if (!result.ok) {
@@ -92,6 +158,11 @@ export class NativeAndroidTvRemoteProxy {
   ) {}
 
   async start() {
+    await prepareNativeAndroidTvRemoteService(
+      this.adbPath,
+      this.serial,
+    );
+
     this.pairingForward = createAdbForward(
       this.adbPath,
       this.serial,
