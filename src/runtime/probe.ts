@@ -1,15 +1,14 @@
 import {
   discoverLatestEmulator,
   discoverLatestGoogleTvImage,
-  platformToolsArtifact,
+  discoverLatestPlatformTools,
 } from "./repository.js";
 
-const [emulator, image] = await Promise.all([
+const [emulator, image, platformTools] = await Promise.all([
   discoverLatestEmulator(),
   discoverLatestGoogleTvImage(),
+  discoverLatestPlatformTools(),
 ]);
-
-const platformTools = platformToolsArtifact();
 
 if (!emulator.url.startsWith("https://dl.google.com/")) {
   throw new Error("Unexpected emulator download host.");
