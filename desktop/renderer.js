@@ -119,7 +119,7 @@ function setRuntimeStatus(status) {
     els.licenseRow.hidden = true;
     els.installRuntime.hidden = false;
     els.installRuntime.disabled = true;
-    els.removeRuntime.hidden = !present;
+    els.removeRuntime.hidden = true;
   } else {
     els.runtimeBadge.textContent = "Not installed";
     els.runtimeBadge.className = "runtime-badge";
