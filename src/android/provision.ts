@@ -46,15 +46,49 @@ export function guestProvisionCommands(): ProvisionCommand[] {
   ];
 }
 
+function sleepSync(milliseconds: number) {
+  const buffer = new SharedArrayBuffer(4);
+  const view = new Int32Array(buffer);
+  Atomics.wait(view, 0, 0, milliseconds);
+}
+
+function runProvisionCommand(
+  adbPath: string,
+  serial: string,
+  command: ProvisionCommand,
+) {
+  const attempts = command.required ? 6 : 2;
+  let last = run(adbPath, ["-s", serial, ...command.args]);
+
+  for (let attempt = 1; !last.ok && attempt < attempts; attempt += 1) {
+    const transient =
+      /closed|offline|device not found|no devices\/emulators/i.test(
+        [last.stdout, last.stderr].join("\n"),
+      );
+
+    if (!transient && command.required) break;
+    sleepSync(500);
+    last = run(adbPath, ["-s", serial, ...command.args]);
+  }
+
+  return last;
+}
+
 export function provisionAndroidTvGuest(
   adbPath: string,
   serial: string,
 ): void {
   for (const command of guestProvisionCommands()) {
-    const result = run(adbPath, ["-s", serial, ...command.args]);
+    const result = runProvisionCommand(
+      adbPath,
+      serial,
+      command,
+    );
+
     if (!result.ok && command.required) {
       throw new Error(
         result.stderr.trim() ||
+          result.stdout.trim() ||
           "Unable to provision Google TV guest mode.",
       );
     }
