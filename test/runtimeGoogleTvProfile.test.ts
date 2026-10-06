@@ -44,6 +44,7 @@ describe("Google TV runtime profile", () => {
     expect(config).toContain("hw.device.name=tv_4k");
     expect(config).toContain("hw.initialOrientation=landscape");
     expect(config).toContain("hw.lcd.density=640");
+    expect(config).toContain("hw.lcd.vsync=120");
     expect(config).toContain("tag.display=Google TV");
     expect(config).toContain("tag.id=google-tv");
 
