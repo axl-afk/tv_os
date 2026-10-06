@@ -1,0 +1,57 @@
+import { run } from "../lib/process.js";
+import { listAdbDevices } from "./sdk.js";
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function waitForNewAdbDevice(
+  adbPath: string,
+  before: Set<string>,
+  timeoutMs = 120_000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const current = listAdbDevices(adbPath);
+    const added = current.find((serial) => !before.has(serial));
+    if (added) return added;
+
+    const emulator = current.find((serial) => serial.startsWith("emulator-"));
+    if (emulator && before.size === 0) return emulator;
+
+    await sleep(1000);
+  }
+
+  throw new Error("Timed out waiting for the Android TV emulator to appear in ADB.");
+}
+
+export async function waitForAndroidBoot(
+  adbPath: string,
+  serial: string,
+  timeoutMs = 180_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const result = run(adbPath, [
+      "-s",
+      serial,
+      "shell",
+      "getprop",
+      "sys.boot_completed",
+    ]);
+
+    if (result.ok && result.stdout.trim() === "1") return;
+    await sleep(1500);
+  }
+
+  throw new Error(`Timed out waiting for Android to finish booting on ${serial}.`);
+}
+
+export function stopEmulator(adbPath: string, serial: string): void {
+  const result = run(adbPath, ["-s", serial, "emu", "kill"]);
+  if (!result.ok) {
+    throw new Error(result.stderr.trim() || `Unable to stop emulator ${serial}.`);
+  }
+}
