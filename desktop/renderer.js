@@ -18,6 +18,8 @@ const els = {
   sdk: document.getElementById("sdk"),
   checks: document.getElementById("checks"),
   remoteMode: document.getElementById("remoteMode"),
+  pairingCode: document.getElementById("pairingCode"),
+  pairingCodeValue: document.getElementById("pairingCodeValue"),
 };
 
 function friendlyPlatform(value) {
@@ -32,6 +34,13 @@ function setStatus(status) {
   els.statusPill.className = "status-pill" + (running ? " running" : error ? " error" : busy ? " busy" : "");
   els.statusText.textContent = status.state.replace("-", " ");
   els.sessionMessage.textContent = status.message || "Ready.";
+  if (status.pairingCode) {
+    els.pairingCode.hidden = false;
+    els.pairingCodeValue.textContent = status.pairingCode;
+  } else {
+    els.pairingCode.hidden = true;
+    els.pairingCodeValue.textContent = "------";
+  }
   els.start.disabled = busy || running;
   els.stop.disabled = !busy && !running && !error;
   els.avd.disabled = busy || running;
