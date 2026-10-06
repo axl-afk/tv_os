@@ -21,7 +21,7 @@ import {
 import {
   discoverLatestEmulator,
   discoverLatestGoogleTvImage,
-  platformToolsArtifact,
+  discoverLatestPlatformTools,
   type RuntimeArtifact,
 } from "./repository.js";
 
@@ -303,11 +303,11 @@ export class RuntimeInstaller extends EventEmitter {
       await fsp.mkdir(runtimeAvdHome(), { recursive: true });
 
       this.update("checking", "repository", undefined, "Checking Google runtime packages…");
-      const [emulator, image] = await Promise.all([
+      const [emulator, image, platformTools] = await Promise.all([
         discoverLatestEmulator(),
         discoverLatestGoogleTvImage(),
+        discoverLatestPlatformTools(),
       ]);
-      const platformTools = platformToolsArtifact();
 
       await fsp.rm(path.join(runtimeSdkRoot(), "platform-tools"), { recursive: true, force: true });
       await this.installZip(platformTools, "platform-tools", runtimeSdkRoot());
