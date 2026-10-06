@@ -3,6 +3,7 @@ import { detectAndroidTools, listAdbDevices, listAvds } from "../android/sdk.js"
 import { launchTvEmulator } from "../android/emulator.js";
 import { AdbInput } from "../android/adbInput.js";
 import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator } from "../android/readiness.js";
+import { requestEmulatorFullscreen } from "../host/fullscreen.js";
 import { AndroidTvRemoteBridge } from "../remote/server.js";
 import {
   NativeAndroidTvRemoteProxy,
@@ -32,6 +33,8 @@ export type StartSessionOptions = {
   avd: string;
   deviceName?: string;
   coldBoot?: boolean;
+  fullscreen?: boolean;
+  remoteMode?: "auto" | "native" | "compatibility";
 };
 
 type StoppableBridge = {
@@ -108,16 +111,31 @@ export class UltimateTvSession extends EventEmitter {
 
       await waitForAndroidBoot(tools.adb, serial);
 
+      const fullscreen = options.fullscreen !== false
+        ? requestEmulatorFullscreen(options.avd)
+        : { ok: false, message: "Fullscreen disabled." };
+
       this.setState({
         state: "starting-remote",
         avd: options.avd,
         serial,
         pid,
-        message: "Starting Google TV phone remote bridge…",
+        message: fullscreen.ok
+          ? "TV is fullscreen. Starting phone remote…"
+          : `Starting phone remote… ${fullscreen.message}`,
       });
 
-      const nativeRemote = hasNativeAndroidTvRemoteService(tools.adb, serial);
-      this.bridge = nativeRemote
+      const nativeRemoteAvailable = hasNativeAndroidTvRemoteService(tools.adb, serial);
+      const preference = options.remoteMode ?? "auto";
+      if (preference === "native" && !nativeRemoteAvailable) {
+        throw new Error("Native Google Android TV Remote Service is not installed in this TV image.");
+      }
+
+      const useNative =
+        preference === "native" ||
+        (preference === "auto" && nativeRemoteAvailable);
+
+      this.bridge = useNative
         ? new NativeAndroidTvRemoteProxy(
             tools.adb,
             serial,
@@ -135,10 +153,10 @@ export class UltimateTvSession extends EventEmitter {
         avd: options.avd,
         serial,
         pid,
-        remoteMode: nativeRemote ? "native" : "compatibility",
-        message: nativeRemote
-          ? "TV is ready. Google TV remote is available on your LAN."
-          : "TV is ready using compatibility remote mode.",
+        remoteMode: useNative ? "native" : "compatibility",
+        message: useNative
+          ? `TV is ready in native Google remote mode. ${fullscreen.message}`
+          : `TV is ready in Select-fix compatibility mode. Phone tap/select is mapped to Android ENTER. ${fullscreen.message}`,
       });
 
       return this.status();
