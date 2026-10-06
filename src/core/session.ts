@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { detectAndroidTools, listAdbDevices, listAvds } from "../android/sdk.js";
 import { checkEmulatorAcceleration, launchTvEmulator } from "../android/emulator.js";
 import { AdbInput } from "../android/adbInput.js";
+import { provisionAndroidTvGuest } from "../android/provision.js";
 import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator, stopRunningAvdInstances, getAndroidDisplaySize } from "../android/readiness.js";
 import { requestEmulatorFullscreen } from "../host/fullscreen.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
@@ -180,6 +181,14 @@ export class UltimateTvSession extends EventEmitter {
       });
 
       await waitForAndroidBoot(tools.adb, serial);
+
+      this.setState({
+        ...this.snapshot,
+        state: "booting",
+        message: "Preparing Google TV guest mode…",
+      });
+
+      provisionAndroidTvGuest(tools.adb, serial);
       const displaySize = getAndroidDisplaySize(tools.adb, serial);
 
       const fullscreen = embedded
