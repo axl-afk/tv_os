@@ -26,9 +26,10 @@ export function launchTvEmulator(options: LaunchOptions): number | undefined {
   if (options.headless) args.push("-no-window");
   if (options.noAudio) args.push("-no-audio");
   if (options.grpcPort) {
-    // Android Emulator's current CLI parser declares -grpc as <port>.
-    // A high random port is allocated per Ultimate TV session.
-    args.push("-grpc", String(options.grpcPort));
+    // Bind the emulator-control endpoint to host loopback only.
+    // The embedded TV renderer is local to Ultimate TV OS and this
+    // control surface must never be reachable from the LAN.
+    args.push("-grpc", `localhost:${options.grpcPort}`);
   }
 
   return spawnDetached(options.emulatorPath, args, {
