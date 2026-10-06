@@ -26,7 +26,9 @@ export function launchTvEmulator(options: LaunchOptions): number | undefined {
   if (options.headless) args.push("-no-window");
   if (options.noAudio) args.push("-no-audio");
   if (options.grpcPort) {
-    args.push("-grpc", `localhost:${options.grpcPort}`);
+    // Android Emulator's current CLI parser declares -grpc as <port>.
+    // A high random port is allocated per Ultimate TV session.
+    args.push("-grpc", String(options.grpcPort));
   }
 
   return spawnDetached(options.emulatorPath, args, {
