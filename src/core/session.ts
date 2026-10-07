@@ -13,6 +13,7 @@ import {
   applyRuntimeGoogleTvProfile,
   applyRuntimeStoragePolicy,
   runtimeFreeSpaceBytes,
+  type RuntimeDisplayProfile,
 } from "../runtime/storage.js";
 import { AndroidTvRemoteBridge } from "../remote/server.js";
 import {
@@ -50,6 +51,8 @@ export type StartSessionOptions = {
   coldBoot?: boolean;
   fullscreen?: boolean;
   embedded?: boolean;
+  streamPreset?: Exclude<RuntimeDisplayProfile, "native">;
+  accountMode?: "guest" | "google";
   remoteMode?: "off" | "auto" | "native" | "compatibility";
   gpuMode?: string;
 };
@@ -96,7 +99,11 @@ export class UltimateTvSession extends EventEmitter {
     this.adbPath = tools.adb;
 
     applyRuntimeStoragePolicy();
-    applyRuntimeGoogleTvProfile(options.embedded ? "embedded" : "native");
+    applyRuntimeGoogleTvProfile(
+      options.embedded
+        ? (options.streamPreset ?? "1080p60")
+        : "native",
+    );
 
     const freeBytes = runtimeFreeSpaceBytes();
     if (freeBytes !== null && freeBytes < 6 * 1024 * 1024 * 1024) {
@@ -186,13 +193,49 @@ export class UltimateTvSession extends EventEmitter {
 
       await waitForAndroidBoot(tools.adb, serial);
 
+      const accountMode = options.accountMode ?? "guest";
+
       this.setState({
         ...this.snapshot,
         state: "booting",
-        message: "Preparing Google TV guest mode…",
+        message:
+          accountMode === "guest"
+            ? "Preparing Google TV guest mode…"
+            : "Preparing Google account setup…",
       });
 
-      provisionAndroidTvGuest(tools.adb, serial);
+      let accountMessage = "";
+      if (accountMode === "guest") {
+        provisionAndroidTvGuest(tools.adb, serial);
+      } else {
+        const buildTags = run(
+          tools.adb,
+          ["-s", serial, "shell", "getprop", "ro.build.tags"],
+        ).stdout.trim();
+
+        const playStore = run(
+          tools.adb,
+          ["-s", serial, "shell", "pm", "path", "com.android.vending"],
+        );
+
+        run(tools.adb, [
+          "-s",
+          serial,
+          "shell",
+          "am",
+          "start",
+          "-a",
+          "android.settings.ADD_ACCOUNT_SETTINGS",
+        ]);
+
+        accountMessage =
+          buildTags.includes("dev-keys")
+            ? " This Google TV emulator image is a development build; Google sign-in or Play-certified apps may still reject it."
+            : playStore.ok
+              ? " Google account setup opened."
+              : " Google Play services are incomplete in this image.";
+      }
+
       const displaySize = getAndroidDisplaySize(tools.adb, serial);
 
       const fullscreen = embedded
@@ -328,8 +371,8 @@ export class UltimateTvSession extends EventEmitter {
         displayHeight: displaySize.height,
         remoteMode: activeRemoteMode,
         message: embedded
-          ? `Ultimate TV is ready. ${remoteMessage}`
-          : `TV is ready. ${fullscreen.message} ${remoteMessage}`,
+          ? `Ultimate TV is ready. ${remoteMessage}${accountMessage}`
+          : `TV is ready. ${fullscreen.message} ${remoteMessage}${accountMessage}`,
       });
 
       return this.status();
