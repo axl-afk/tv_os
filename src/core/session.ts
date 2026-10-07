@@ -3,7 +3,10 @@ import { EventEmitter } from "node:events";
 import { detectAndroidTools, listAdbDevices, listAvds } from "../android/sdk.js";
 import { checkEmulatorAcceleration, launchTvEmulator } from "../android/emulator.js";
 import { AdbInput } from "../android/adbInput.js";
-import { provisionAndroidTvGuest } from "../android/provision.js";
+import {
+  prepareGoogleAccountSetup,
+  provisionAndroidTvGuest,
+} from "../android/provision.js";
 import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator, stopRunningAvdInstances, getAndroidDisplaySize } from "../android/readiness.js";
 import { requestEmulatorFullscreen } from "../host/fullscreen.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
@@ -224,27 +227,21 @@ export class UltimateTvSession extends EventEmitter {
           ["-s", serial, "shell", "getprop", "ro.build.tags"],
         ).stdout.trim();
 
-        const playStore = run(
+        const accountSetup = prepareGoogleAccountSetup(
           tools.adb,
-          ["-s", serial, "shell", "pm", "path", "com.android.vending"],
+          serial,
         );
 
-        run(tools.adb, [
-          "-s",
-          serial,
-          "shell",
-          "am",
-          "start",
-          "-a",
-          "android.settings.ADD_ACCOUNT_SETTINGS",
-        ]);
+        accountMessage = accountSetup.setupComplete
+          ? accountSetup.playStore
+            ? " Google account settings opened."
+            : " Google account settings opened, but this image has no Play Store package."
+          : " Continue through Google's first-run account setup on the TV.";
 
-        accountMessage =
-          buildTags.includes("dev-keys")
-            ? " This Google TV emulator image is a development build; Google sign-in or Play-certified apps may still reject it."
-            : playStore.ok
-              ? " Google account setup opened."
-              : " Google Play services are incomplete in this image.";
+        if (buildTags.includes("dev-keys")) {
+          accountMessage +=
+            " This is a Google TV development image, so certification-gated apps may still reject the device.";
+        }
       }
 
       const displaySize = getAndroidDisplaySize(tools.adb, serial);
