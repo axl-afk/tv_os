@@ -147,6 +147,17 @@ export class UltimateTvSession extends EventEmitter {
         "emulator-last.log",
       );
 
+      const launchEnvironment = {
+        ...tools.environment,
+      };
+
+      if (
+        process.platform === "darwin" &&
+        !launchEnvironment.QEMU_AUDIO_DRV
+      ) {
+        launchEnvironment.QEMU_AUDIO_DRV = "coreaudio";
+      }
+
       const pid = launchTvEmulator({
         emulatorPath: tools.emulator,
         avd: options.avd,
@@ -154,7 +165,7 @@ export class UltimateTvSession extends EventEmitter {
         headless: embedded,
         grpcPort,
         gpuMode: options.gpuMode,
-        environment: tools.environment,
+        environment: launchEnvironment,
         logFile: emulatorLogFile,
       });
       launchedPid = pid;
