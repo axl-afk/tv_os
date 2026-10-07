@@ -62,6 +62,23 @@ function hostOs(): string {
 function hostArch(): string { return runtimeRepositoryHostArch(); }
 function tvAbi(): string { return runtimeTvAbi(); }
 
+function hostArchMatches(value: string | undefined): boolean {
+  if (!value) return true;
+
+  const normalized = value.toLowerCase();
+  const arch = hostArch();
+
+  if (arch === "aarch64") {
+    return normalized === "aarch64" || normalized === "arm64";
+  }
+
+  return (
+    normalized === "x86_64" ||
+    normalized === "x64" ||
+    normalized === "amd64"
+  );
+}
+
 function text(value: any): string | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value === "string" || typeof value === "number") return String(value);
@@ -108,7 +125,7 @@ function selectHostArchive(pkg: any): any | undefined {
   return archives.find((archive: any) => {
     const archiveOs = text(archive?.["host-os"]);
     const archiveArch = text(archive?.["host-arch"]);
-    return archiveOs === os && (!archiveArch || archiveArch === arch);
+    return archiveOs === os && hostArchMatches(archiveArch);
   });
 }
 
@@ -189,7 +206,7 @@ export async function discoverLatestGoogleTvImage(): Promise<RuntimeArtifact> {
     const archive = archives.find((item: any) => {
       const os = text(item?.["host-os"]);
       const arch = text(item?.["host-arch"]);
-      return (!os || os === hostOs()) && (!arch || arch === hostArch());
+      return (!os || os === hostOs()) && hostArchMatches(arch);
     }) ?? archives[0];
     const manifestBase = manifest.url.slice(0, manifest.url.lastIndexOf("/") + 1);
     const artifact = archiveToArtifact(archive, manifestBase, { packagePath, apiLevel, abi });
