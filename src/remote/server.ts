@@ -124,10 +124,7 @@ export class AndroidTvRemoteBridge {
       protocol: "tcp",
       port: REMOTE_PORT,
       txt: {
-        // Keep compatibility pairing distinct from the guest's native
-        // Google Remote Service identity so phones do not reuse a native
-        // TLS pairing against our tap-capable bridge.
-        bt: "02:55:4C:54:56:02",
+        bt: "02:55:4C:54:56:01",
       },
     });
 
@@ -299,11 +296,12 @@ export class AndroidTvRemoteBridge {
         if (msg.remoteConfigure) {
           // Current Google TV clients answer the TV's configuration first.
           // The TV then asks the client to mark that capability set active.
+          // Preserve the handshake used by the last swipe-working build.
+          // Advertising the feature mask here caused current Google TV phone
+          // clients to treat touchpad gestures as keyboard/tab navigation.
           socket.write(
             encodeDelimited(RemoteMessage, {
-              remoteSetActive: {
-                active: compatibilityTvConfigurePayload().code1,
-              },
+              remoteSetActive: {},
             }),
           );
         } else if (msg.remoteSetActive) {
