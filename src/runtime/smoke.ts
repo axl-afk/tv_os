@@ -269,6 +269,62 @@ try {
   console.log(
     `[runtime-smoke] SUCCESS: embedded TV frame ${frame.width}x${frame.height}, ${frame.bytes} bytes.`,
   );
+
+  // Reproduce the real 4K path that previously exceeded gRPC's 4 MiB
+  // default receive ceiling. One RGB888 3840x2160 frame is ~24.9 MiB.
+  display.stop();
+  display = new EmulatorDisplayStream({
+    port: endpoint.port,
+    address: endpoint.address,
+    token: endpoint.token,
+    appPath: process.cwd(),
+    width: 3840,
+    height: 2160,
+    maxFps: 1,
+  });
+
+  const fourKFrame = new Promise<{
+    width: number;
+    height: number;
+    bytes: number;
+  }>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("Timed out waiting for the 4K TV frame.")),
+      30_000,
+    );
+
+    display!.once("frame", (value) => {
+      clearTimeout(timer);
+      resolve({
+        width: value.width,
+        height: value.height,
+        bytes: value.pixels.length,
+      });
+    });
+
+    display!.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+  });
+
+  await display.start();
+  const frame4k = await fourKFrame;
+
+  if (frame4k.width !== 3840 || frame4k.height !== 2160) {
+    throw new Error(
+      `Expected a 3840x2160 4K frame, received ${frame4k.width}x${frame4k.height}.`,
+    );
+  }
+  if (frame4k.bytes <= 4 * 1024 * 1024) {
+    throw new Error(
+      `4K frame was unexpectedly small: ${frame4k.bytes} bytes.`,
+    );
+  }
+
+  console.log(
+    `[runtime-smoke] SUCCESS: 4K gRPC frame ${frame4k.width}x${frame4k.height}, ${frame4k.bytes} bytes received above the default 4 MiB ceiling.`,
+  );
 } finally {
   display?.stop();
 
