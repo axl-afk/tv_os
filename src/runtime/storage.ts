@@ -49,6 +49,8 @@ export function applyRuntimeGoogleTvProfile(
   const configPath = path.join(runtimeAvdDir(), "config.ini");
   if (!fs.existsSync(configPath)) return;
 
+  const nativePerformance = displayMode === "native";
+
   const profile: Record<string, string> = {
     "PlayStore.enabled": "true",
     "hw.device.manufacturer": "Google",
@@ -58,10 +60,10 @@ export function applyRuntimeGoogleTvProfile(
     "hw.keyboard.lid": "yes",
     "hw.dPad": "yes",
     "hw.mainKeys": "yes",
-    "hw.lcd.width": "3840",
-    "hw.lcd.height": "2160",
-    "hw.lcd.density": "640",
-    "hw.lcd.vsync": "60",
+    "hw.lcd.width": nativePerformance ? "3840" : "1280",
+    "hw.lcd.height": nativePerformance ? "2160" : "720",
+    "hw.lcd.density": nativePerformance ? "640" : "320",
+    "hw.lcd.vsync": nativePerformance ? "120" : "60",
     "hw.sensors.orientation": "no",
     "hw.sensors.proximity": "no",
     "showDeviceFrame": "no",
