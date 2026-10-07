@@ -12,6 +12,7 @@ let latestFrame = null;
 let rafScheduled = false;
 let textureWidth = 0;
 let textureHeight = 0;
+let pointerGesture = null;
 
 const gl = frameEl.getContext("webgl", {
   alpha: false,
@@ -285,7 +286,7 @@ window.addEventListener("paste", (event) => {
   api.text(value);
 });
 
-frameEl.addEventListener("click", (event) => {
+function normalizedPoint(clientX, clientY) {
   const rect = frameEl.getBoundingClientRect();
   const containerRatio = rect.width / rect.height;
   const imageRatio = sourceWidth / sourceHeight;
@@ -305,11 +306,83 @@ frameEl.addEventListener("click", (event) => {
     offsetY = (rect.height - drawnHeight) / 2;
   }
 
-  const localX = event.clientX - rect.left - offsetX;
-  const localY = event.clientY - rect.top - offsetY;
-  if (localX < 0 || localY < 0 || localX > drawnWidth || localY > drawnHeight) return;
+  const localX = clientX - rect.left - offsetX;
+  const localY = clientY - rect.top - offsetY;
+  if (
+    localX < 0 ||
+    localY < 0 ||
+    localX > drawnWidth ||
+    localY > drawnHeight
+  ) {
+    return null;
+  }
 
-  api.tap(localX / drawnWidth, localY / drawnHeight);
+  return {
+    x: localX / drawnWidth,
+    y: localY / drawnHeight,
+  };
+}
+
+frameEl.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 && event.pointerType === "mouse") return;
+
+  const point = normalizedPoint(event.clientX, event.clientY);
+  if (!point) return;
+
+  event.preventDefault();
+  frameEl.setPointerCapture?.(event.pointerId);
+  pointerGesture = {
+    pointerId: event.pointerId,
+    start: point,
+    latest: point,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    startedAt: performance.now(),
+  };
+});
+
+frameEl.addEventListener("pointermove", (event) => {
+  if (!pointerGesture || pointerGesture.pointerId !== event.pointerId) return;
+  const point = normalizedPoint(event.clientX, event.clientY);
+  if (point) pointerGesture.latest = point;
+});
+
+function finishPointerGesture(event) {
+  if (!pointerGesture || pointerGesture.pointerId !== event.pointerId) return;
+
+  event.preventDefault();
+  const gesture = pointerGesture;
+  pointerGesture = null;
+
+  try {
+    frameEl.releasePointerCapture?.(event.pointerId);
+  } catch {}
+
+  const end = normalizedPoint(event.clientX, event.clientY) ?? gesture.latest;
+  const dx = event.clientX - gesture.startClientX;
+  const dy = event.clientY - gesture.startClientY;
+  const distance = Math.hypot(dx, dy);
+  const durationMs = performance.now() - gesture.startedAt;
+
+  // A drag must move far enough to be intentional. This prevents a swipe
+  // from also generating the click/tap that browsers normally emit.
+  if (distance >= 12) {
+    api.swipe(
+      gesture.start.x,
+      gesture.start.y,
+      end.x,
+      end.y,
+      Math.min(1200, Math.max(80, durationMs)),
+    );
+  } else {
+    api.tap(end.x, end.y);
+  }
+}
+
+frameEl.addEventListener("pointerup", finishPointerGesture);
+frameEl.addEventListener("pointercancel", (event) => {
+  if (!pointerGesture || pointerGesture.pointerId !== event.pointerId) return;
+  pointerGesture = null;
 });
 
 resizeCanvas();
