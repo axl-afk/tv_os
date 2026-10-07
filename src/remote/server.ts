@@ -38,6 +38,17 @@ type PairingState = {
   expectedSecret?: Buffer;
 };
 
+export function shouldInjectRemoteKey(
+  keyCode: number,
+  direction: number,
+): boolean {
+  return (
+    direction === 3 ||
+    direction === 0 ||
+    (keyCode === 23 && direction === 1)
+  );
+}
+
 function certificateKeyParts(cert: unknown) {
   const parsed = cert as { modulus?: string; exponent?: string };
   if (!parsed.modulus || !parsed.exponent) {
@@ -307,11 +318,10 @@ export class AndroidTvRemoteBridge {
           // START_LONG=1 should also activate the focused control immediately
           // so touchpad taps cannot connect without selecting.
           const shouldInject =
-            direction === 3 ||
-            direction === 0 ||
-            (keyCode === 23 && direction === 1);
+            Number.isFinite(keyCode) &&
+            shouldInjectRemoteKey(keyCode, direction);
 
-          if (shouldInject && Number.isFinite(keyCode)) {
+          if (shouldInject) {
             try {
               this.input.key(keyCode);
             } catch (error) {
