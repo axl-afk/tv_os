@@ -89,7 +89,7 @@ function setStatus(status) {
     els.remoteMode.textContent =
       status.remoteMode === "native"
         ? "Native Google Android TV Remote Service"
-        : "Compatibility remote service";
+        : "Ultimate TV Remote — tap/select enabled";
   } else {
     els.remoteMode.textContent = runtimeReady ? "Runtime ready" : "Runtime not installed";
   }
