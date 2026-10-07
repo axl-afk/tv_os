@@ -72,6 +72,8 @@ export function applyRuntimeGoogleTvProfile(
     "hw.device.manufacturer": "Google",
     "hw.device.name": "tv_4k",
     "hw.initialOrientation": "landscape",
+    "hw.audioInput": "no",
+    "hw.audioOutput": "yes",
     "hw.keyboard": "yes",
     "hw.keyboard.lid": "yes",
     "hw.dPad": "yes",
