@@ -125,10 +125,19 @@ async function stopTvCompletely() {
   return session.stop();
 }
 
+type StreamPreset = "720p60" | "1080p60" | "4k60";
+
+function streamPresetSize(preset: StreamPreset) {
+  if (preset === "4k60") return { width: 3840, height: 2160, fps: 60 };
+  if (preset === "1080p60") return { width: 1920, height: 1080, fps: 60 };
+  return { width: 1280, height: 720, fps: 60 };
+}
+
 async function createTvSurface(
   snapshot: SessionSnapshot,
   requestedDisplayId?: string,
   startFullscreen = false,
+  streamPreset: StreamPreset = "1080p60",
 ) {
   if (!snapshot.grpcPort || !snapshot.serial) {
     throw new Error(
@@ -235,21 +244,14 @@ async function createTvSurface(
     20_000,
   );
 
-  const physicalWidth = Math.max(
-    1,
-    Math.round(target.size.width * target.scaleFactor),
-  );
-  const physicalHeight = Math.max(
-    1,
-    Math.round(target.size.height * target.scaleFactor),
-  );
+  const requestedStream = streamPresetSize(streamPreset);
   const streamWidth = Math.min(
-    snapshot.displayWidth ?? physicalWidth,
-    physicalWidth,
+    requestedStream.width,
+    snapshot.displayWidth ?? requestedStream.width,
   );
   const streamHeight = Math.min(
-    snapshot.displayHeight ?? physicalHeight,
-    physicalHeight,
+    requestedStream.height,
+    snapshot.displayHeight ?? requestedStream.height,
   );
 
   displayStream = new EmulatorDisplayStream({
@@ -259,7 +261,7 @@ async function createTvSurface(
     appPath: app.getAppPath(),
     width: streamWidth,
     height: streamHeight,
-    maxFps: 60,
+    maxFps: requestedStream.fps,
   });
 
   const sendFrame = (frame: TvFrame) => {
@@ -360,6 +362,8 @@ app.whenReady().then(() => {
         coldBoot?: boolean;
         displayId?: string;
         displayMode?: "native" | "embedded";
+        streamPreset?: StreamPreset;
+        accountMode?: "guest" | "google";
         fullscreen?: boolean;
         remoteMode?: "off" | "auto" | "native" | "compatibility";
       },
@@ -373,6 +377,7 @@ app.whenReady().then(() => {
           coldBoot: options.coldBoot,
           embedded,
           fullscreen: Boolean(options.fullscreen),
+          accountMode: options.accountMode,
           remoteMode: options.remoteMode,
           gpuMode: process.platform === "darwin" ? "host" : "auto",
         });
@@ -382,6 +387,7 @@ app.whenReady().then(() => {
             snapshot,
             options.displayId,
             Boolean(options.fullscreen),
+            options.streamPreset ?? "1080p60",
           );
         }
 
