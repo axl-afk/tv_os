@@ -57,6 +57,8 @@ async function expectProfile(
 
   const config = fs.readFileSync(configPath, "utf8");
   expect(config).toContain("PlayStore.enabled=true");
+  expect(config).toContain("hw.audioOutput=yes");
+  expect(config).toContain("hw.audioInput=no");
   expect(config).toContain("hw.device.manufacturer=Google");
   expect(config).toContain("hw.device.name=tv_4k");
   expect(config).toContain(`hw.lcd.width=${expected.width}`);
