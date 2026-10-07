@@ -41,7 +41,11 @@ export function applyRuntimeStoragePolicy(
   }
 }
 
-export function applyRuntimeGoogleTvProfile(): void {
+export type RuntimeDisplayMode = "embedded" | "native";
+
+export function applyRuntimeGoogleTvProfile(
+  displayMode: RuntimeDisplayMode = "native",
+): void {
   const configPath = path.join(runtimeAvdDir(), "config.ini");
   if (!fs.existsSync(configPath)) return;
 
