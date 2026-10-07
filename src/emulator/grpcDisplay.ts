@@ -65,9 +65,8 @@ export class EmulatorDisplayStream extends EventEmitter {
       target,
       grpc.credentials.createInsecure(),
       {
-        // A 4K RGB888 frame is about 24.9 MB. Embedded mode normally boots
-        // at 720p now, but keep enough headroom so one unexpected full-size
-        // frame cannot tear down the stream.
+        // A 4K RGB888 frame is about 24.9 MB. The default gRPC receive
+        // ceiling is only 4 MB, so 1080p/4K presets require explicit headroom.
         "grpc.max_receive_message_length": 64 * 1024 * 1024,
         "grpc.max_send_message_length": 64 * 1024 * 1024,
       },
