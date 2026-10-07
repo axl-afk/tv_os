@@ -64,6 +64,13 @@ export class EmulatorDisplayStream extends EventEmitter {
     const client = new Controller(
       target,
       grpc.credentials.createInsecure(),
+      {
+        // A 4K RGB888 frame is about 24.9 MB. Embedded mode normally boots
+        // at 720p now, but keep enough headroom so one unexpected full-size
+        // frame cannot tear down the stream.
+        "grpc.max_receive_message_length": 64 * 1024 * 1024,
+        "grpc.max_send_message_length": 64 * 1024 * 1024,
+      },
     );
     this.client = client;
 
