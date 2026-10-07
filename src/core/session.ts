@@ -96,7 +96,7 @@ export class UltimateTvSession extends EventEmitter {
     this.adbPath = tools.adb;
 
     applyRuntimeStoragePolicy();
-    applyRuntimeGoogleTvProfile();
+    applyRuntimeGoogleTvProfile(options.embedded ? "embedded" : "native");
 
     const freeBytes = runtimeFreeSpaceBytes();
     if (freeBytes !== null && freeBytes < 6 * 1024 * 1024 * 1024) {
