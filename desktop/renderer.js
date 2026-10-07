@@ -12,6 +12,8 @@ const els = {
   startFullscreen: document.getElementById("startFullscreen"),
   displaySelect: document.getElementById("displaySelect"),
   displayModeSelect: document.getElementById("displayModeSelect"),
+  streamPresetSelect: document.getElementById("streamPresetSelect"),
+  accountModeSelect: document.getElementById("accountModeSelect"),
   remoteModeSelect: document.getElementById("remoteModeSelect"),
   start: document.getElementById("startBtn"),
   stop: document.getElementById("stopBtn"),
@@ -57,6 +59,9 @@ function updateControls() {
   els.startFullscreen.disabled = busy || running;
   els.displaySelect.disabled = busy || running;
   els.displayModeSelect.disabled = busy || running;
+  els.streamPresetSelect.disabled =
+    busy || running || els.displayModeSelect.value === "native";
+  els.accountModeSelect.disabled = busy || running;
   els.remoteModeSelect.disabled = busy || running;
 }
 
@@ -257,6 +262,8 @@ els.licenseAccept.addEventListener("change", () => {
 
 els.licenseBtn.addEventListener("click", () => api.openAndroidLicense());
 
+els.displayModeSelect.addEventListener("change", updateControls);
+
 els.start.addEventListener("click", async () => {
   if (!runtimeReady || !els.avd.value) return;
   try {
@@ -266,6 +273,8 @@ els.start.addEventListener("click", async () => {
       coldBoot: els.coldBoot.checked,
       displayId: els.displaySelect.value,
       displayMode: els.displayModeSelect.value,
+      streamPreset: els.streamPresetSelect.value,
+      accountMode: els.accountModeSelect.value,
       fullscreen: els.startFullscreen.checked,
       remoteMode: els.remoteModeSelect.value,
     });
