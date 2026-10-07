@@ -167,7 +167,10 @@ function renderChecks(info) {
 async function refresh() {
   const info = await api.systemInfo();
   els.platform.textContent = friendlyPlatform(info.platform);
-  els.arch.textContent = info.arch;
+  els.arch.textContent =
+    info.nativeArch && info.nativeArch !== info.arch
+      ? info.nativeArch + " native (" + info.arch + " app)"
+      : (info.nativeArch || info.arch);
   els.sdk.textContent =
     info.sdkSource === "ultimate-tv"
       ? "Ultimate TV managed"
@@ -177,6 +180,11 @@ async function refresh() {
 
   setRuntimeStatus(info.runtime);
   renderChecks(info);
+
+  if (info.hostSupport && !info.hostSupport.supported) {
+    els.runtimeMessage.textContent =
+      info.hostSupport.reason || "This host architecture is not supported.";
+  }
 
   const currentDisplay = els.displaySelect.value;
   els.displaySelect.innerHTML = "";
