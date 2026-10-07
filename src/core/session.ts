@@ -260,93 +260,87 @@ export class UltimateTvSession extends EventEmitter {
             : `Starting phone remote… ${fullscreen.message}`,
       });
 
-      const preference = options.remoteMode ?? "auto";
+      const preference = options.remoteMode ?? "compatibility";
       let activeRemoteMode: "native" | "compatibility" | undefined;
       let remoteMessage = "Phone remote disabled.";
+
+      const createCompatibilityBridge = () =>
+        new AndroidTvRemoteBridge(
+          new AdbInput(tools.adb!, serial),
+          options.deviceName ?? "Ultimate TV OS",
+          {
+            onPairingCode: (pairingCode) => {
+              this.setState({
+                ...this.snapshot,
+                pairingCode,
+                message: `Enter pairing code ${pairingCode} in the Google TV phone remote.`,
+              });
+            },
+            onPaired: () => {
+              this.setState({
+                ...this.snapshot,
+                pairingCode: undefined,
+                message: "Phone paired through Ultimate TV Remote.",
+              });
+            },
+          },
+        );
 
       if (preference !== "off") {
         const nativeRemoteAvailable =
           hasNativeAndroidTvRemoteService(tools.adb, serial);
 
-        const useNative =
-          preference === "native" ||
-          (preference === "auto" && nativeRemoteAvailable);
+        const primaryMode =
+          preference === "native" ? "native" : "compatibility";
 
-        if (preference === "native" && !nativeRemoteAvailable) {
-          remoteMessage = "Native Google phone remote service is unavailable in this image.";
+        if (primaryMode === "native" && !nativeRemoteAvailable) {
+          remoteMessage =
+            "Native Google phone remote service is unavailable in this image.";
         } else {
-          this.bridge = useNative
-            ? new NativeAndroidTvRemoteProxy(
-                tools.adb,
-                serial,
-                options.deviceName ?? "Ultimate TV OS",
-              )
-            : new AndroidTvRemoteBridge(
-                new AdbInput(tools.adb, serial),
-                options.deviceName ?? "Ultimate TV OS",
-                {
-                  onPairingCode: (pairingCode) => {
-                    this.setState({
-                      ...this.snapshot,
-                      pairingCode,
-                      message: `Enter pairing code ${pairingCode} in the Google TV phone remote.`,
-                    });
-                  },
-                  onPaired: () => {
-                    this.setState({
-                      ...this.snapshot,
-                      pairingCode: undefined,
-                      message: "Phone paired.",
-                    });
-                  },
-                },
-              );
+          this.bridge =
+            primaryMode === "native"
+              ? new NativeAndroidTvRemoteProxy(
+                  tools.adb,
+                  serial,
+                  options.deviceName ?? "Ultimate TV OS",
+                )
+              : createCompatibilityBridge();
 
           try {
             await this.bridge.start();
-            activeRemoteMode = useNative ? "native" : "compatibility";
-            remoteMessage = useNative
-              ? "Native Google phone remote is available."
-              : "Compatibility phone remote is available.";
+            activeRemoteMode = primaryMode;
+            remoteMessage =
+              primaryMode === "native"
+                ? "Native Google phone remote is available."
+                : "Ultimate TV Remote is available with tap/select handling.";
           } catch (error) {
-            const nativeError =
+            const primaryError =
               error instanceof Error ? error.message : String(error);
 
             this.bridge = undefined;
 
-            if (useNative && preference === "auto") {
-              const fallback = new AndroidTvRemoteBridge(
-                new AdbInput(tools.adb, serial),
+            if (
+              preference === "auto" &&
+              primaryMode === "compatibility" &&
+              nativeRemoteAvailable
+            ) {
+              const fallback = new NativeAndroidTvRemoteProxy(
+                tools.adb,
+                serial,
                 options.deviceName ?? "Ultimate TV OS",
-                {
-                  onPairingCode: (pairingCode) => {
-                    this.setState({
-                      ...this.snapshot,
-                      pairingCode,
-                      message: `Enter pairing code ${pairingCode} in the Google TV phone remote.`,
-                    });
-                  },
-                  onPaired: () => {
-                    this.setState({
-                      ...this.snapshot,
-                      pairingCode: undefined,
-                      message: "Phone paired through compatibility remote.",
-                    });
-                  },
-                },
               );
 
               try {
                 await fallback.start();
                 this.bridge = fallback;
-                activeRemoteMode = "compatibility";
+                activeRemoteMode = "native";
                 remoteMessage =
-                  "Compatibility phone remote is available (native Google service did not start).";
+                  "Native Google phone remote is available (Ultimate TV Remote did not start).";
               } catch (fallbackError) {
                 remoteMessage =
-                  "TV started, but both phone remote backends failed. Native: " +
-                  nativeError +
-                  " Compatibility: " +
+                  "TV started, but both phone remote backends failed. Ultimate TV Remote: " +
+                  primaryError +
+                  " Native: " +
                   (fallbackError instanceof Error
                     ? fallbackError.message
                     : String(fallbackError));
@@ -354,7 +348,7 @@ export class UltimateTvSession extends EventEmitter {
             } else {
               remoteMessage =
                 "TV started, but phone remote is unavailable: " +
-                nativeError;
+                primaryError;
             }
           }
         }
