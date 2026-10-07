@@ -20,6 +20,10 @@ export function compatibilityPairingOptionPayload() {
   };
 }
 
+export function compatibilitySetActivePayload() {
+  return {};
+}
+
 export function compatibilityTvConfigurePayload() {
   return {
     code1: 639,
@@ -301,7 +305,7 @@ export class AndroidTvRemoteBridge {
           // clients to treat touchpad gestures as keyboard/tab navigation.
           socket.write(
             encodeDelimited(RemoteMessage, {
-              remoteSetActive: {},
+              remoteSetActive: compatibilitySetActivePayload(),
             }),
           );
         } else if (msg.remoteSetActive) {
