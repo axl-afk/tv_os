@@ -18,7 +18,7 @@ import {
   runtimeRoot,
   runtimeSdkRoot,
 } from "./paths.js";
-import { runtimeHostArch } from "./host.js";
+import { runtimeHostSupport } from "./host.js";
 import {
   applyRuntimeGoogleTvProfile,
   applyRuntimeStoragePolicy,
@@ -119,12 +119,12 @@ function readRuntimeMetadata(): RuntimeMetadata | null {
 }
 
 function ensureSupportedHost() {
-  if (!["darwin", "win32", "linux"].includes(process.platform)) {
-    throw new Error("Ultimate TV runtime installation is unsupported on this operating system.");
-  }
-  const hardwareArch = runtimeHostArch();
-  if (process.platform !== "darwin" && hardwareArch !== "x64") {
-    throw new Error("This build currently supports x64 on Windows/Linux and arm64/x64 on macOS.");
+  const support = runtimeHostSupport();
+  if (!support.supported) {
+    throw new Error(
+      support.reason ??
+        "Ultimate TV runtime installation is unsupported on this host.",
+    );
   }
 }
 
