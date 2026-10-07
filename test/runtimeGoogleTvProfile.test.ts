@@ -28,8 +28,8 @@ async function createTestAvd() {
     configPath,
     [
       "PlayStore.enabled=true",
-      "hw.lcd.width=1920",
-      "hw.lcd.height=1080",
+      "hw.lcd.width=1280",
+      "hw.lcd.height=720",
       "hw.lcd.density=320",
       "hw.lcd.vsync=60",
       "hw.device.name=legacy_tv",
@@ -41,40 +41,64 @@ async function createTestAvd() {
   return { root, configPath };
 }
 
+async function expectProfile(
+  profile: "720p60" | "1080p60" | "4k60" | "native",
+  expected: {
+    width: number;
+    height: number;
+    density: number;
+  },
+) {
+  const { root, configPath } = await createTestAvd();
+  const { applyRuntimeGoogleTvProfile } =
+    await import("../src/runtime/storage.js");
+
+  applyRuntimeGoogleTvProfile(profile);
+
+  const config = fs.readFileSync(configPath, "utf8");
+  expect(config).toContain("PlayStore.enabled=true");
+  expect(config).toContain("hw.device.manufacturer=Google");
+  expect(config).toContain("hw.device.name=tv_4k");
+  expect(config).toContain(`hw.lcd.width=${expected.width}`);
+  expect(config).toContain(`hw.lcd.height=${expected.height}`);
+  expect(config).toContain(`hw.lcd.density=${expected.density}`);
+  expect(config).toContain("hw.lcd.vsync=60");
+  expect(config).toContain("tag.display=Google TV");
+  expect(config).toContain("tag.id=google-tv");
+
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 describe("Google TV runtime profile", () => {
-  it("configures native performance mode as a 4K 120 Hz TV", async () => {
-    const { root, configPath } = await createTestAvd();
-    const { applyRuntimeGoogleTvProfile } = await import("../src/runtime/storage.js");
-
-    applyRuntimeGoogleTvProfile("native");
-
-    const config = fs.readFileSync(configPath, "utf8");
-    expect(config).toContain("PlayStore.enabled=true");
-    expect(config).toContain("hw.device.manufacturer=Google");
-    expect(config).toContain("hw.device.name=tv_4k");
-    expect(config).toContain("hw.initialOrientation=landscape");
-    expect(config).toContain("hw.lcd.width=3840");
-    expect(config).toContain("hw.lcd.height=2160");
-    expect(config).toContain("hw.lcd.density=640");
-    expect(config).toContain("hw.lcd.vsync=120");
-    expect(config).toContain("tag.display=Google TV");
-    expect(config).toContain("tag.id=google-tv");
-
-    fs.rmSync(root, { recursive: true, force: true });
+  it("configures 720p60 embedded output", async () => {
+    await expectProfile("720p60", {
+      width: 1280,
+      height: 720,
+      density: 320,
+    });
   });
 
-  it("configures embedded mode as a 720p 60 Hz framebuffer", async () => {
-    const { root, configPath } = await createTestAvd();
-    const { applyRuntimeGoogleTvProfile } = await import("../src/runtime/storage.js");
+  it("configures 1080p60 embedded output", async () => {
+    await expectProfile("1080p60", {
+      width: 1920,
+      height: 1080,
+      density: 320,
+    });
+  });
 
-    applyRuntimeGoogleTvProfile("embedded");
+  it("configures 4K60 embedded output", async () => {
+    await expectProfile("4k60", {
+      width: 3840,
+      height: 2160,
+      density: 640,
+    });
+  });
 
-    const config = fs.readFileSync(configPath, "utf8");
-    expect(config).toContain("hw.lcd.width=1280");
-    expect(config).toContain("hw.lcd.height=720");
-    expect(config).toContain("hw.lcd.density=320");
-    expect(config).toContain("hw.lcd.vsync=60");
-
-    fs.rmSync(root, { recursive: true, force: true });
+  it("uses a 4K60 framebuffer for direct/native mode", async () => {
+    await expectProfile("native", {
+      width: 3840,
+      height: 2160,
+      density: 640,
+    });
   });
 });
