@@ -29,6 +29,26 @@ export const AndroidKeyCode: Record<number, number> = {
   164: 164 // VOLUME_MUTE
 };
 
+export function buildAdbSwipeArgs(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  durationMs = 250,
+): string[] {
+  const duration = Math.min(2000, Math.max(50, Math.round(durationMs)));
+  return [
+    "shell",
+    "input",
+    "swipe",
+    String(Math.max(0, Math.round(x1))),
+    String(Math.max(0, Math.round(y1))),
+    String(Math.max(0, Math.round(x2))),
+    String(Math.max(0, Math.round(y2))),
+    String(duration),
+  ];
+}
+
 export class AdbInput {
   constructor(
     private readonly adbPath: string,
@@ -57,6 +77,21 @@ export class AdbInput {
     const result = run(this.adbPath, args);
     if (!result.ok) {
       throw new Error(result.stderr.trim() || "ADB tap injection failed");
+    }
+  }
+
+  swipe(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    durationMs = 250,
+  ) {
+    const args = this.serial ? ["-s", this.serial] : [];
+    args.push(...buildAdbSwipeArgs(x1, y1, x2, y2, durationMs));
+    const result = run(this.adbPath, args);
+    if (!result.ok) {
+      throw new Error(result.stderr.trim() || "ADB swipe injection failed");
     }
   }
 
