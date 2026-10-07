@@ -75,23 +75,38 @@
         <label>
           <span>Display mode</span>
           <select id="displayModeSelect">
-            <option value="embedded" selected>Mac Window — native display resolution / 60 FPS</option>
-            <option value="native">Direct Emulator — best performance</option>
+            <option value="embedded" selected>Ultimate TV Window</option>
+            <option value="native">Direct Emulator — maximum performance</option>
+          </select>
+        </label>
+        <label>
+          <span>Embedded quality</span>
+          <select id="streamPresetSelect">
+            <option value="720p60">720p · 60 Hz — lowest latency</option>
+            <option value="1080p60" selected>1080p · 60 Hz — recommended</option>
+            <option value="4k60">4K · 60 Hz — high bandwidth</option>
+          </select>
+        </label>
+        <label>
+          <span>Account setup</span>
+          <select id="accountModeSelect">
+            <option value="guest" selected>Guest TV — no Google account required</option>
+            <option value="google">Google account setup — emulator support required</option>
           </select>
         </label>
         <label>
           <span>Phone remote mode</span>
           <select id="remoteModeSelect">
-            <option value="auto" selected>Auto — use the best available remote backend</option>
-            <option value="native">Native Google Remote Service (when present)</option>
-            <option value="compatibility">Ultimate TV Remote v2</option>
+            <option value="compatibility" selected>Ultimate TV Remote — tap/select fixed</option>
+            <option value="native">Native Google Remote Service</option>
+            <option value="auto">Auto</option>
             <option value="off">Off</option>
           </select>
         </label>
       </div>
 
       <p class="embedded-note">
-        Mac Window uses the selected monitor's native backing-pixel resolution and standard macOS traffic-light controls. Direct Emulator bypasses the embedded stream when maximum performance matters.
+        Ultimate TV Window supports 720p60, 1080p60, or 4K60. Direct Emulator bypasses the embedded stream for maximum performance. Google-account sign-in depends on the Google TV emulator image and is not guaranteed on uncertified images.
       </p>
       <label class="check-row">
         <input type="checkbox" id="coldBoot" />
