@@ -466,6 +466,46 @@ app.whenReady().then(() => {
     },
   );
 
+  ipcMain.on(
+    "tv:swipe",
+    (
+      _event,
+      gesture: {
+        x1?: number;
+        y1?: number;
+        x2?: number;
+        y2?: number;
+        durationMs?: number;
+      },
+    ) => {
+      if (!tvInput) return;
+
+      const clamp = (value: number) =>
+        Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+
+      const x1 = clamp(Number(gesture?.x1 ?? 0));
+      const y1 = clamp(Number(gesture?.y1 ?? 0));
+      const x2 = clamp(Number(gesture?.x2 ?? 0));
+      const y2 = clamp(Number(gesture?.y2 ?? 0));
+      const durationMs = Math.min(
+        1200,
+        Math.max(80, Number(gesture?.durationMs ?? 250)),
+      );
+
+      try {
+        tvInput.swipe(
+          x1 * tvGuestSize.width,
+          y1 * tvGuestSize.height,
+          x2 * tvGuestSize.width,
+          y2 * tvGuestSize.height,
+          durationMs,
+        );
+      } catch (error) {
+        sendTv("tv:status", { error: String(error) });
+      }
+    },
+  );
+
   ipcMain.handle("tv:exit", async () => stopTvCompletely());
 
   ipcMain.handle("system:open-docs", async () => {
