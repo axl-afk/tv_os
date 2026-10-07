@@ -287,7 +287,9 @@ export class AndroidTvRemoteBridge {
           // The TV then asks the client to mark that capability set active.
           socket.write(
             encodeDelimited(RemoteMessage, {
-              remoteSetActive: {},
+              remoteSetActive: {
+                active: compatibilityTvConfigurePayload().code1,
+              },
             }),
           );
         } else if (msg.remoteSetActive) {
@@ -297,13 +299,21 @@ export class AndroidTvRemoteBridge {
             }),
           );
         } else if (msg.remoteKeyInject) {
-          // Direction 3 is a short press in Android TV Remote v2.
-          if (
-            msg.remoteKeyInject.direction === 3 ||
-            msg.remoteKeyInject.direction === 0
-          ) {
+          const keyCode = Number(msg.remoteKeyInject.keyCode);
+          const direction = Number(msg.remoteKeyInject.direction);
+
+          // Android TV Remote v2 uses SHORT=3 for a tap/press.
+          // Some clients transiently send UNKNOWN=0. For DPAD_CENTER,
+          // START_LONG=1 should also activate the focused control immediately
+          // so touchpad taps cannot connect without selecting.
+          const shouldInject =
+            direction === 3 ||
+            direction === 0 ||
+            (keyCode === 23 && direction === 1);
+
+          if (shouldInject && Number.isFinite(keyCode)) {
             try {
-              this.input.key(Number(msg.remoteKeyInject.keyCode));
+              this.input.key(keyCode);
             } catch (error) {
               console.error("[remote] key injection failed:", error);
             }
