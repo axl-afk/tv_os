@@ -5,6 +5,22 @@ import {
   decodeFrames,
   encodeDelimited,
 } from "../src/remote/protocol.js";
+import {
+  compatibilitySetActivePayload,
+  shouldInjectRemoteKey,
+} from "../src/remote/server.js";
+
+describe("remote compatibility behavior", () => {
+  it("keeps the swipe-working empty activation handshake", () => {
+    expect(compatibilitySetActivePayload()).toEqual({});
+  });
+
+  it("keeps short swipes/presses and fixes DPAD_CENTER tap start", () => {
+    expect(shouldInjectRemoteKey(19, 3)).toBe(true);
+    expect(shouldInjectRemoteKey(23, 1)).toBe(true);
+    expect(shouldInjectRemoteKey(19, 1)).toBe(false);
+  });
+});
 
 describe("remote protocol framing", () => {
   it("round trips a pairing frame", () => {
