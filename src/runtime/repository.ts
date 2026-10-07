@@ -102,12 +102,14 @@ function selectHostArchive(pkg: any): any | undefined {
   const archives = asArray(pkg?.archives?.archive);
   const os = hostOs();
   const arch = hostArch();
-  const exact = archives.find((archive: any) =>
-    text(archive?.["host-os"]) === os &&
-    (!text(archive?.["host-arch"]) || text(archive?.["host-arch"]) === arch),
-  );
-  if (exact) return exact;
-  return archives.find((archive: any) => text(archive?.["host-os"]) === os);
+
+  // Prefer an exact host architecture. A package with no host-arch is treated
+  // as universal. Never fall back to a known mismatched architecture.
+  return archives.find((archive: any) => {
+    const archiveOs = text(archive?.["host-os"]);
+    const archiveArch = text(archive?.["host-arch"]);
+    return archiveOs === os && (!archiveArch || archiveArch === arch);
+  });
 }
 
 export function platformToolsArtifact(): RuntimeArtifact {
