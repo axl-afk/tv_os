@@ -7,7 +7,7 @@ import { provisionAndroidTvGuest } from "../android/provision.js";
 import { waitForAndroidBoot, waitForNewAdbDevice, stopEmulator, stopRunningAvdInstances, getAndroidDisplaySize } from "../android/readiness.js";
 import { requestEmulatorFullscreen } from "../host/fullscreen.js";
 import { reserveFreeLoopbackPort } from "../lib/network.js";
-import { terminateProcessTree } from "../lib/process.js";
+import { run, terminateProcessTree } from "../lib/process.js";
 import { runtimeRoot } from "../runtime/paths.js";
 import {
   applyRuntimeGoogleTvProfile,
