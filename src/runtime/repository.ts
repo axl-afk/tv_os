@@ -118,7 +118,6 @@ async function fetchManifest(urls: string[]): Promise<{ url: string; xml: any }>
 function selectHostArchive(pkg: any): any | undefined {
   const archives = asArray(pkg?.archives?.archive);
   const os = hostOs();
-  const arch = hostArch();
 
   // Prefer an exact host architecture. A package with no host-arch is treated
   // as universal. Never fall back to a known mismatched architecture.
