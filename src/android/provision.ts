@@ -94,3 +94,101 @@ export function provisionAndroidTvGuest(
     }
   }
 }
+
+export type GoogleAccountSetupResult = {
+  setupComplete: boolean;
+  playServices: boolean;
+  playStore: boolean;
+  launchedAccountSettings: boolean;
+};
+
+export function prepareGoogleAccountSetup(
+  adbPath: string,
+  serial: string,
+): GoogleAccountSetupResult {
+  const playServices = run(adbPath, [
+    "-s",
+    serial,
+    "shell",
+    "pm",
+    "path",
+    "com.google.android.gms",
+  ]).ok;
+
+  const playStore = run(adbPath, [
+    "-s",
+    serial,
+    "shell",
+    "pm",
+    "path",
+    "com.android.vending",
+  ]).ok;
+
+  if (!playServices) {
+    throw new Error(
+      "This Google TV image does not include Google Play services, so Google account sign-in cannot be opened.",
+    );
+  }
+
+  const setupCompleteResult = run(adbPath, [
+    "-s",
+    serial,
+    "shell",
+    "settings",
+    "get",
+    "secure",
+    "user_setup_complete",
+  ]);
+  const setupComplete =
+    setupCompleteResult.ok &&
+    setupCompleteResult.stdout.trim() === "1";
+
+  // On a fresh image, leave Google's own first-run setup flow in control.
+  if (!setupComplete) {
+    return {
+      setupComplete: false,
+      playServices,
+      playStore,
+      launchedAccountSettings: false,
+    };
+  }
+
+  // If the user previously chose Guest mode, the setup wizard was marked
+  // complete. Open Android's supported add-account surface instead.
+  const launch = run(adbPath, [
+    "-s",
+    serial,
+    "shell",
+    "am",
+    "start",
+    "-a",
+    "android.settings.ADD_ACCOUNT_SETTINGS",
+  ]);
+
+  if (!launch.ok) {
+    const fallback = run(adbPath, [
+      "-s",
+      serial,
+      "shell",
+      "am",
+      "start",
+      "-a",
+      "android.settings.SETTINGS",
+    ]);
+
+    if (!fallback.ok) {
+      throw new Error(
+        launch.stderr.trim() ||
+          fallback.stderr.trim() ||
+          "Unable to open Google account settings.",
+      );
+    }
+  }
+
+  return {
+    setupComplete: true,
+    playServices,
+    playStore,
+    launchedAccountSettings: true,
+  };
+}
