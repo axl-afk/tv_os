@@ -64,3 +64,50 @@ export function runtimeTvAbi(): "arm64-v8a" | "x86_64" {
 export function runtimeRepositoryHostArch(): "aarch64" | "x86_64" {
   return runtimeHostArch() === "arm64" ? "aarch64" : "x86_64";
 }
+
+export type RuntimeHostSupport = {
+  supported: boolean;
+  platform: NodeJS.Platform;
+  arch: RuntimeHostArch;
+  reason?: string;
+};
+
+export function runtimeHostSupport(
+  platform: NodeJS.Platform = process.platform,
+  arch: RuntimeHostArch = runtimeHostArch(),
+): RuntimeHostSupport {
+  if (platform === "darwin") {
+    return { supported: true, platform, arch };
+  }
+
+  if (platform === "win32") {
+    return arch === "x64"
+      ? { supported: true, platform, arch }
+      : {
+          supported: false,
+          platform,
+          arch,
+          reason:
+            "Windows ARM64 is not supported by the official Android Emulator runtime used by Ultimate TV. Use Windows x64.",
+        };
+  }
+
+  if (platform === "linux") {
+    return arch === "x64"
+      ? { supported: true, platform, arch }
+      : {
+          supported: false,
+          platform,
+          arch,
+          reason:
+            "Linux ARM64 is not supported by the standard Google Android Emulator distribution used by Ultimate TV.",
+        };
+  }
+
+  return {
+    supported: false,
+    platform,
+    arch,
+    reason: "Ultimate TV supports macOS, Windows, and Linux hosts only.",
+  };
+}
