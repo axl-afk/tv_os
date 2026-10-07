@@ -41,15 +41,31 @@ export function applyRuntimeStoragePolicy(
   }
 }
 
-export type RuntimeDisplayMode = "embedded" | "native";
+export type RuntimeDisplayProfile =
+  | "720p60"
+  | "1080p60"
+  | "4k60"
+  | "native";
+
+function displayProfile(profile: RuntimeDisplayProfile) {
+  if (profile === "720p60") {
+    return { width: "1280", height: "720", density: "320", vsync: "60" };
+  }
+  if (profile === "1080p60") {
+    return { width: "1920", height: "1080", density: "320", vsync: "60" };
+  }
+
+  // Direct/native and 4K embedded both use the real 4K TV framebuffer.
+  return { width: "3840", height: "2160", density: "640", vsync: "60" };
+}
 
 export function applyRuntimeGoogleTvProfile(
-  displayMode: RuntimeDisplayMode = "native",
+  profileName: RuntimeDisplayProfile = "4k60",
 ): void {
   const configPath = path.join(runtimeAvdDir(), "config.ini");
   if (!fs.existsSync(configPath)) return;
 
-  const nativePerformance = displayMode === "native";
+  const display = displayProfile(profileName);
 
   const profile: Record<string, string> = {
     "PlayStore.enabled": "true",
@@ -60,10 +76,10 @@ export function applyRuntimeGoogleTvProfile(
     "hw.keyboard.lid": "yes",
     "hw.dPad": "yes",
     "hw.mainKeys": "yes",
-    "hw.lcd.width": nativePerformance ? "3840" : "1280",
-    "hw.lcd.height": nativePerformance ? "2160" : "720",
-    "hw.lcd.density": nativePerformance ? "640" : "320",
-    "hw.lcd.vsync": nativePerformance ? "120" : "60",
+    "hw.lcd.width": display.width,
+    "hw.lcd.height": display.height,
+    "hw.lcd.density": display.density,
+    "hw.lcd.vsync": display.vsync,
     "hw.sensors.orientation": "no",
     "hw.sensors.proximity": "no",
     "showDeviceFrame": "no",
