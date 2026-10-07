@@ -124,7 +124,10 @@ export class AndroidTvRemoteBridge {
       protocol: "tcp",
       port: REMOTE_PORT,
       txt: {
-        bt: "02:55:4C:54:56:01",
+        // Keep compatibility pairing distinct from the guest's native
+        // Google Remote Service identity so phones do not reuse a native
+        // TLS pairing against our tap-capable bridge.
+        bt: "02:55:4C:54:56:02",
       },
     });
 
