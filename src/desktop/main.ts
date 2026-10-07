@@ -13,6 +13,10 @@ import { AdbInput } from "../android/adbInput.js";
 import { runDoctorSnapshot } from "../doctor.js";
 import { RuntimeInstaller } from "../runtime/installer.js";
 import {
+  runtimeHostArch,
+  runtimeHostSupport,
+} from "../runtime/host.js";
+import {
   EmulatorDisplayStream,
   type TvFrame,
 } from "../emulator/grpcDisplay.js";
@@ -319,6 +323,8 @@ app.whenReady().then(() => {
     return {
       platform: process.platform,
       arch: process.arch,
+      nativeArch: runtimeHostArch(),
+      hostSupport: runtimeHostSupport(),
       version: app.getVersion(),
       sdkRoot: tools.sdkRoot,
       sdkSource: tools.source,
@@ -376,6 +382,7 @@ app.whenReady().then(() => {
           deviceName: options.deviceName,
           coldBoot: options.coldBoot,
           embedded,
+          streamPreset: options.streamPreset ?? "1080p60",
           fullscreen: Boolean(options.fullscreen),
           accountMode: options.accountMode,
           remoteMode: options.remoteMode,
