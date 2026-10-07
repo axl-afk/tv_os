@@ -10,8 +10,12 @@ describe("runtime host architecture", () => {
     expect(resolveRuntimeHostArch("darwin", "x64", false)).toBe("x64");
   });
 
-  it("uses the process architecture on non-macOS hosts", () => {
-    expect(resolveRuntimeHostArch("linux", "arm64", false)).toBe("arm64");
-    expect(resolveRuntimeHostArch("win32", "x64", false)).toBe("x64");
+  it("detects Windows ARM hardware even when the app process is x64", () => {
+    expect(resolveRuntimeHostArch("win32", "x64", false, true)).toBe("arm64");
+  });
+
+  it("uses the process architecture on supported non-translated hosts", () => {
+    expect(resolveRuntimeHostArch("linux", "arm64", false, false)).toBe("arm64");
+    expect(resolveRuntimeHostArch("win32", "x64", false, false)).toBe("x64");
   });
 });
