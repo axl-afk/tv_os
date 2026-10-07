@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld("ultimateTvSurface", {
   key: (keyCode) => ipcRenderer.send("tv:key", keyCode),
   text: (value) => ipcRenderer.send("tv:text", value),
   tap: (x, y) => ipcRenderer.send("tv:tap", { x, y }),
+  swipe: (x1, y1, x2, y2, durationMs) =>
+    ipcRenderer.send("tv:swipe", { x1, y1, x2, y2, durationMs }),
 });
